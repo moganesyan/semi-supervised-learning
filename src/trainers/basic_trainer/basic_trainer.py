@@ -18,9 +18,9 @@ logger.addHandler(console)
 logger.setLevel(logging.INFO)
 
 
-class BasicCETrainer(BaseTrainer):
+class CategoricalCETrainer(BaseTrainer):
     """
-        Basic Categorical Cross Entropy (CE) trainer.
+        Categorical Cross Entropy (CE) trainer.
     """
 
     def __init__(
