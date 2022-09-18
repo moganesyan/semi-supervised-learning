@@ -69,7 +69,6 @@ class BaseTrainer(ABC):
 
         pass
 
-    @abstractmethod
     def save_model(self) -> None:
         """
             Save model.
@@ -77,7 +76,6 @@ class BaseTrainer(ABC):
 
         pass
 
-    @abstractmethod
     def save_checkpoint(self) -> None:
         """
             Save model checkpoint.
