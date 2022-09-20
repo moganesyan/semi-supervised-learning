@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 
 from ..base_trainer.base_trainer import BaseTrainer
-from ..base_trainer.base_trainer_config import BaseTrainerConfig
+from .categorical_ce_trainer_config import CategoricalCETrainerConfig
 
 from ...losses.classification import categorical_cross_entropy
 
@@ -27,7 +27,7 @@ class CategoricalCETrainer(BaseTrainer):
         self,
         model,
         train_dataset: tf.data.Dataset,
-        training_config: BaseTrainerConfig,
+        training_config: CategoricalCETrainerConfig,
         val_dataset: Optional[tf.data.Dataset] = None,
         scheduler: Optional[tf.keras.optimizers.schedules.LearningRateSchedule] = None,
         callbacks: Optional[List[tf.keras.callbacks.Callback]] = None) -> None:
@@ -72,7 +72,7 @@ class CategoricalCETrainer(BaseTrainer):
                 loss (tf.Tensor) - Loss for the batch.
         """
 
-        y_pred_batch = self._model(x_batch)
+        y_pred_batch = self._model(x_batch, training = False)
         loss = categorical_cross_entropy(y_pred_batch, y_batch)
         return loss
     
