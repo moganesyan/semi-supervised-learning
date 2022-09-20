@@ -1,7 +1,7 @@
-from typing import Union, Optional
-from dataclasses import dataclass
+from typing import Union, Optional, Dict
+from dataclasses import dataclass, field
 
-@dataclass
+
 class BaseTrainerConfig():
     """
         Base configuration class for all trainers.
@@ -17,8 +17,14 @@ class BaseTrainerConfig():
     """
 
     output_dir: str = None
-    batch_size: int = 100
+    batch_size: int = 32
     num_epochs: int = 100
-    learning_rate: float = 1e-4
     save_epochs: Optional[int] = 10
     seed: int = 42
+
+    optimizer: Dict = {
+        "name": "adam",
+        "params": {
+            "learning_rate": 1e-4
+        }
+    }
