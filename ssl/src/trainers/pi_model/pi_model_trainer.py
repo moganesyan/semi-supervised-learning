@@ -52,7 +52,6 @@ class PiModelTrainer(BaseTrainer):
 
         raise NotImplementedError
 
-
     def eval_step(self, x_batch: tf.Tensor, y_batch: tf.Tensor) -> float:
         """
             Apply a single evaluation step on the input batch.
