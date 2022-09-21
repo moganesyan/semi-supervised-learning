@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 from ..base_trainer.base_trainer import BaseTrainer
-from .categorical_ce_trainer_config import CategoricalCETrainerConfig
+from .pi_model_trainer_config import PiModelTrainerConfig
 
 from ...losses.classification import categorical_cross_entropy
 
@@ -16,16 +16,17 @@ logger.addHandler(console)
 logger.setLevel(logging.INFO)
 
 
-class CategoricalCETrainer(BaseTrainer):
+class PiModelTrainer(BaseTrainer):
     """
-        Categorical Cross Entropy (CE) trainer.
+        Pi-model trainer.
+        As seen in the original paper: https://arxiv.org/abs/1610.02242
     """
 
     def __init__(
         self,
         model,
         train_dataset: tf.data.Dataset,
-        training_config: CategoricalCETrainerConfig,
+        training_config: PiModelTrainerConfig,
         val_dataset: Optional[tf.data.Dataset] = None,
         scheduler: Optional[tf.keras.optimizers.schedules.LearningRateSchedule] = None,
         callbacks: Optional[List[tf.keras.callbacks.Callback]] = None) -> None:
@@ -49,12 +50,8 @@ class CategoricalCETrainer(BaseTrainer):
                 loss (tf.Tensor) - Loss for the batch.
         """
 
-        with tf.GradientTape() as tape:
-            y_pred_batch = self._model(x_batch)
-            loss = categorical_cross_entropy(y_pred_batch, y_batch)
-        self._optimizer.minimize(loss, self._model.trainable_variables, tape = tape)
+        raise NotImplementedError
 
-        return loss
 
     def eval_step(self, x_batch: tf.Tensor, y_batch: tf.Tensor) -> float:
         """
@@ -70,9 +67,7 @@ class CategoricalCETrainer(BaseTrainer):
                 loss (tf.Tensor) - Loss for the batch.
         """
 
-        y_pred_batch = self._model(x_batch, training = False)
-        loss = categorical_cross_entropy(y_pred_batch, y_batch)
-        return loss
+        raise NotImplementedError
     
     def train(self) -> None:
         """
@@ -91,24 +86,4 @@ class CategoricalCETrainer(BaseTrainer):
                 None
         """
 
-        for epoch in tf.range(self._training_config.num_epochs):
-            train_loss = 0
-
-            for train_step_idx, (x_batch_train, y_batch_train) in enumerate(self._train_dataset):
-                loss_train = self.train_step(x_batch_train, y_batch_train)
-                train_loss += loss_train
-            
-            train_loss /=  len(self._train_dataset)
-
-            if self._val_dataset is not None:
-                val_loss = 0
-
-                for val_step_idx, (x_batch_val, y_batch_val) in enumerate(self._val_dataset):
-                    loss_val = self.eval_step(x_batch_val, y_batch_val)
-                    val_loss += loss_val
-                
-                val_loss /= len(self._val_dataset)
-                
-                tf.print(f"Training loss at epoch {epoch} is : {train_loss:.2f}. Validation loss is : {val_loss:.2f}.")
-            else:
-                tf.print(f"Training loss at epoch {epoch} is : {train_loss:.2f}.")
+        raise NotImplementedError
