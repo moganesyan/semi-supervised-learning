@@ -11,7 +11,6 @@ class PiModelTrainerConfig(BaseTrainerConfig):
         params:
             output_dir (str): Directory where output models and checkpoints
                 will be stored.
-            batch_size (int): Training batch size.
             num_epochs (int): Number of training epochs.
             learning_rate (float): Learning rate for parameter updates.
             save_epochs (int): Number of epochs at which to save the model checkpoint.
@@ -22,6 +21,5 @@ class PiModelTrainerConfig(BaseTrainerConfig):
 
     weight_ramp_up_epochs: int = 20
     num_epochs: int = 100
-    batch_size: int = 128
 
     # TODO: should augmentation probabilities go here?
