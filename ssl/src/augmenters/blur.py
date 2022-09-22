@@ -27,9 +27,9 @@ def get_gaussian_kernel(k: int, sigma: float) -> tf.Tensor:
     return kernel_gauss
 
 
-def apply_gaussian_noise(x_in: tf.Tensor,
-                         blur_strength: Tuple[float, float] = (0.1, 2.0),
-                         **kwargs) -> tf.Tensor:
+def apply_gaussian_blur(x_in: tf.Tensor,
+                        blur_strength: Tuple[float, float] = (0.1, 2.0),
+                        **kwargs) -> tf.Tensor:
     """
         Apply 2D gaussian blur to input tensor.
         - Uniformly sample blur strength [0.1, 2.0]
