@@ -3,68 +3,36 @@ from typing import Union, Optional, Dict, Callable, Tuple, Union
 import tensorflow as tf
 
 from ..base_data_loader.base_data_loader import BaseDataLoader
-from .pi_model_data_loader_config import PiModelDataLoaderConfig
+from .categorical_ce_data_loader_config import CategoricalCEDataLoaderConfig
 
 from ...augmenters.affine import apply_crop_and_resize
 from ...augmenters.colour import apply_colour_distortion
 from ...augmenters.blur import apply_gaussian_blur
 
 
-class PiModelDataLoader(BaseDataLoader):
+class CategoricalCEDataLoader(BaseDataLoader):
     """
-        Class for the Pi-Model data loader.
+        Class for the categorical CE data loader.
 
         args:
-            data_in (Union[tf.data.Dataset, Tuple[tf.data.Dataset, tf.data.Dataset]]):
-                Tuple of labelled and unlabelled dataset if training, or a test dataset.
-            data_loader_config (PiModelDataLoaderConfig): Configuration class for the data loader.
+            data_in (tf.data.Dataset): Labelled dataset.
+            data_loader_config (CategoricalCEDataLoaderConfig): Configuration class for the data loader.
         returns:
             None
     """
 
     def __init__(self,
-                 data_in: Union[tf.data.Dataset, Tuple[tf.data.Dataset, tf.data.Dataset]],
-                 data_loader_config: PiModelDataLoaderConfig) -> None:
+                 data_in: tf.data.Dataset,
+                 data_loader_config: CategoricalCEDataLoaderConfig) -> None:
         super().__init__(data_loader_config)
         self._data_in = data_in
 
-    def _get_preprocessing_func_train(self) -> Callable:
+    def _get_preprocessing_func(self) -> Callable:
         """
-            Get function that applies training preprocessing steps.
+            Get function that applies data preprocessing steps.
 
-            1) Scaling features values between 0 and 1.
-
-            args:
-                None
-            returns:
-                preproc_func (Callable) - Data preprocessing function.
-        """
-
-        def preproc_func(features: tf.Tensor, label: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
-            """
-                Apply training preprocessing steps.
-
-                This function is meant to be applied elementwise.
-
-                args:
-                    features (tf.Tensor) - Features on which to apply preprocessing steps.
-                    label (tf.Tensor) - Label(s) for the sample instance.
-                return:
-                    features_proc (tf.Tensor) - Features after preprocessing steps have been applied.
-                    label (tf.Tensor) - Labels(s) for the sample instance.
-            """
-
-            features_proc = tf.cast(features, tf.float32) / 255.
-            return features_proc, label
-
-        return preproc_func
-
-    def _get_preprocessing_func_inf(self) -> Callable:
-        """
-            Get function that applies inference preprocessing steps.
-
-            1) Scaling features values between 0 and 1.
-            2) Apply one-hot encoding on labelled samples.
+            1) Scaling image values between 0 and 1.
+            2) One-hot encode label.
 
             args:
                 None
@@ -76,7 +44,7 @@ class PiModelDataLoader(BaseDataLoader):
 
         def preproc_func(features: tf.Tensor, label: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
             """
-                Apply inference preprocessing steps.
+                Apply data preprocessing steps.
 
                 This function is meant to be applied elementwise.
 
@@ -85,7 +53,7 @@ class PiModelDataLoader(BaseDataLoader):
                     label (tf.Tensor) - Label(s) for the sample instance.
                 return:
                     features_proc (tf.Tensor) - Features after preprocessing steps have been applied.
-                    label (tf.Tensor) - One-hot encoded labels(s) for the sample instance.
+                    label_onehot (tf.Tensor) - One-hot encoded labels(s) for the sample instance.
             """
 
             features_proc = tf.cast(features, tf.float32) / 255.
@@ -158,56 +126,6 @@ class PiModelDataLoader(BaseDataLoader):
 
         return aug_func
 
-    def _get_batch_func(self) -> Callable:
-        """
-            Get custom batching function.
-
-            1) Split batch into labelled and unlabelled samples.
-            2) Apply one-hot encoding on labelled samples.
-
-            args:
-                None
-            returns:
-                batch_func (Callable) - Custom batching function.
-        """
-
-        num_classes = self._data_loader_config.num_classes
-
-        def batch_func(features_batch: tf.Tensor, labels_batch: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
-            """
-                Apply custom batching logic.
-
-                Batch is split into labelled and unlabelled minibatches.
-                Unlabelled instances are identified by a class label of -1.
-
-                This function is meant to be applied batchwise.
-
-                args:
-                    features_batch (tf.Tensor) - Batch of features.
-                    labels_batch (tf.Tensor) - Batch of labels.
-                return:
-                    features_batch_labelled (tf.Tensor) - Batch of features with labels.
-                    features_batch_unlabelled (tf.Tensor) - Batch of features without labels.
-                    label_batch_onehot (tf.Tensor) - Batch of one-hot encoded class labels.
-            """
-
-            # idx for unlabelled data
-            idx_labelled = tf.where(tf.not_equal(labels_batch, -1))[:,0]
-            idx_unlabelled = tf.where(tf.equal(labels_batch, -1))[:,0]
-
-            # split batch
-            features_batch_labelled = tf.gather(features_batch, indices = idx_labelled, axis = 0)
-            labels_batch_labelled = tf.gather(labels_batch, indices = idx_labelled, axis = 0)
-
-            features_batch_unlabelled = tf.gather(features_batch, indices = idx_unlabelled, axis = 0)
-
-            # encode labels
-            label_batch_onehot = tf.squeeze(tf.one_hot(labels_batch_labelled, num_classes))
-
-            return features_batch_labelled, features_batch_unlabelled, label_batch_onehot
-
-        return batch_func
-
     def _build_data_loader(self, training: bool) -> tf.data.Dataset:
         """
             Build data loader from the configuration object.
@@ -223,22 +141,17 @@ class PiModelDataLoader(BaseDataLoader):
         """
 
         if training:
-            preproc_func = self._get_preprocessing_func_train()
+            preproc_func = self._get_preprocessing_func()
             aug_func = self._get_augmentation_func()
-            batch_func = self._get_batch_func
 
             # chain operators
-            dataset = tf.data.Dataset.sample_from_datasets(
-                [self._data_in[0], self._data_in[1]],
-                self._data_loader_config.batch_ratios
-            )
+            dataset = self._data_in
             dataset = dataset.shuffle(buffer_size=self._data_loader_config.shuffle_buffer_size)
             dataset = dataset.map(preproc_func)
             dataset = dataset.map(aug_func)
             dataset = dataset.batch(self._data_loader_config.batch_size)
-            dataset = dataset.map(batch_func)
         else:
-            preproc_func = self._get_preprocessing_func_inf()
+            preproc_func = self._get_preprocessing_func()
 
             # chain operators
             dataset = self._data_in
@@ -246,4 +159,3 @@ class PiModelDataLoader(BaseDataLoader):
             dataset = dataset.batch(self._data_loader_config.batch_size)
 
         return dataset
-
