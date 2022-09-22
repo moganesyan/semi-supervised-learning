@@ -23,26 +23,26 @@ class BaseDataLoader(ABC):
         self._data_loader_config = data_loader_config
 
     @abstractmethod
-    def _build_data_loader(self) -> tf.data.Dataset:
+    def _build_data_loader(self, training: bool) -> tf.data.Dataset:
         """
             Build data loader from the configuration object.
 
             args:
-                None
+                training: bool - Flag to indicate if the dataset is for training.
             returns:
                 dataset (tf.data.Dataset) - Dataset iterable.
         """
 
         pass
 
-    def __call__(self) -> tf.data.Dataset:
+    def __call__(self, training: bool = True) -> tf.data.Dataset:
         """
             Get data loader.
 
             args:
-                None
+                training: bool - Flag to indicate if the dataset is for training.
             returns:
                 dataset (tf.data.Dataset) - Dataset iterable.
         """
 
-        return self._build_data_loader()
+        return self._build_data_loader(training)
