@@ -205,7 +205,7 @@ class PiModelDataLoader(BaseDataLoader):
 
         def batch_func(features_batch_1: tf.Tensor,
                        features_batch_2: tf.Tensor,
-                       labels_batch: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+                       labels_batch: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
             """
                 Apply custom batching logic.
 
@@ -214,19 +214,20 @@ class PiModelDataLoader(BaseDataLoader):
 
                 This function is meant to be applied batchwise.
 
-                1) Labelled batch is constructed only from the first realisation of 
+                1) Labelled batch is constructed only from two realisations of 
                     augmented features.
-                2) Unlabelled batch is constructed from both realisation of
+                2) Unlabelled batch is constructed from two realisation of
                     augmented features.
 
                 args:
-                    features_batch_1 (tf.Tensor) - First batch of augmented features.
-                    features_batch_2 (tf.Tensor) - Second batch of augmented features.
+                    features_batch_1 (tf.Tensor) - First realisation batch of augmented features.
+                    features_batch_2 (tf.Tensor) - Second realisation batch of augmented features.
                     labels_batch (tf.Tensor) - Batch of labels.
                 return:
-                    features_batch_labelled (tf.Tensor) - Batch of features with labels.
-                    features_batch_unlabelled_1 (tf.Tensor) - First batch of features without labels.
-                    features_batch_unlabelled_2 (tf.Tensor) - Second batch of features without labels.
+                    features_batch_labelled_1 (tf.Tensor) - First batch of augmented features with labels.
+                    features_batch_labelled_2 (tf.Tensor) - Second batch of augmented features with labels.
+                    features_batch_unlabelled_1 (tf.Tensor) - First batch of augmented features without labels.
+                    features_batch_unlabelled_2 (tf.Tensor) - Second batch of augmented features without labels.
                     label_batch_onehot (tf.Tensor) - Batch of one-hot encoded class labels.
             """
 
@@ -235,7 +236,8 @@ class PiModelDataLoader(BaseDataLoader):
             idx_unlabelled = tf.where(tf.equal(labels_batch, -1))[:,0]
 
             # split batch
-            features_batch_labelled = tf.gather(features_batch_1, indices = idx_labelled, axis = 0)
+            features_batch_labelled_1 = tf.gather(features_batch_1, indices = idx_labelled, axis = 0)
+            features_batch_labelled_2 = tf.gather(features_batch_2, indices = idx_labelled, axis = 0)
             labels_batch_labelled = tf.gather(labels_batch, indices = idx_labelled, axis = 0)
 
             features_batch_unlabelled_1 = tf.gather(features_batch_1, indices = idx_unlabelled, axis = 0)
@@ -244,7 +246,7 @@ class PiModelDataLoader(BaseDataLoader):
             # encode labels
             label_batch_onehot = tf.squeeze(tf.one_hot(labels_batch_labelled, num_classes))
 
-            return features_batch_labelled, features_batch_unlabelled_1, features_batch_unlabelled_2, label_batch_onehot
+            return features_batch_labelled_1, features_batch_labelled_2, features_batch_unlabelled_1, features_batch_unlabelled_2, label_batch_onehot
 
         return batch_func
 
