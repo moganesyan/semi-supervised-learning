@@ -116,9 +116,9 @@ class PiModelDataLoader(BaseDataLoader):
         crop_chance = self._data_loader_config.crop_chance
         jitter_chance = self._data_loader_config.jitter_chance
 
-        def aug_func(features: tf.Tensor, label: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
+        def aug_func(features: tf.Tensor, label: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
             """
-                Apply random data augmentations.
+                Apply two realisations of random data augmentations.
 
                 This function is meant to be applied elementwise.
 
@@ -126,35 +126,65 @@ class PiModelDataLoader(BaseDataLoader):
                     features (tf.Tensor) - Features on which to apply random augmentations.
                     label (tf.Tensor) - Label(s).
                 return:
-                    features_aug (tf.Tensor) - Features after random augmentations have been applied.
+                    features_aug_1 (tf.Tensor) - Features after random augmentations have been applied.
+                    features_aug_2 (tf.Tensor) - Features after random augmentations have been applied.
                     label (tf.Tensor) - Labels(s).
             """
 
-            features_aug = features[tf.newaxis, ...]
+            features_aug_1 = features[tf.newaxis, ...]
+            features_aug_2 = features[tf.newaxis, ...]
 
-            roll_blur = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
-            roll_crop = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
-            roll_jitter = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
+            # roll 1
+            roll_blur_1 = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
+            roll_crop_1 = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
+            roll_jitter_1 = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
+
+            # roll 2
+            roll_blur_2 = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
+            roll_crop_2 = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
+            roll_jitter_2 = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
+
+            # apply the first realisation of random augmentations
 
             # apply random gaussian blur
-            if roll_blur <= blur_chance:
-                features_aug = apply_gaussian_blur(
-                    features_aug
+            if roll_blur_1 <= blur_chance:
+                features_aug_1 = apply_gaussian_blur(
+                    features_aug_1
                 )
 
             # apply random crop and resize
-            if roll_crop <= crop_chance:
-                features_aug = apply_crop_and_resize(
-                    features_aug
+            if roll_crop_1 <= crop_chance:
+                features_aug_1 = apply_crop_and_resize(
+                    features_aug_1
                 )
 
             # apply random colour jitter / distortion
-            if roll_jitter <= jitter_chance:
-                features_aug = apply_colour_distortion(
-                    features_aug
+            if roll_jitter_1 <= jitter_chance:
+                features_aug_1 = apply_colour_distortion(
+                    features_aug_1
                 )
 
-            return tf.squeeze(features_aug), label
+            # apply the second realisation of random augmentations
+
+            # apply random gaussian blur
+            if roll_blur_2 <= blur_chance:
+                features_aug_2 = apply_gaussian_blur(
+                    features_aug_2
+                )
+
+            # apply random crop and resize
+            if roll_crop_2 <= crop_chance:
+                features_aug_2 = apply_crop_and_resize(
+                    features_aug_2
+                )
+
+            # apply random colour jitter / distortion
+            if roll_jitter_2 <= jitter_chance:
+                features_aug_2 = apply_colour_distortion(
+                    features_aug_2
+                )
+
+            return tf.squeeze(features_aug_1), tf.squeeze(features_aug_2), label
 
         return aug_func
 
@@ -173,7 +203,9 @@ class PiModelDataLoader(BaseDataLoader):
 
         num_classes = self._data_loader_config.num_classes
 
-        def batch_func(features_batch: tf.Tensor, labels_batch: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+        def batch_func(features_batch_1: tf.Tensor,
+                       features_batch_2: tf.Tensor,
+                       labels_batch: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
             """
                 Apply custom batching logic.
 
@@ -182,12 +214,19 @@ class PiModelDataLoader(BaseDataLoader):
 
                 This function is meant to be applied batchwise.
 
+                1) Labelled batch is constructed only from the first realisation of 
+                    augmented features.
+                2) Unlabelled batch is constructed from both realisation of
+                    augmented features.
+
                 args:
-                    features_batch (tf.Tensor) - Batch of features.
+                    features_batch_1 (tf.Tensor) - First batch of augmented features.
+                    features_batch_2 (tf.Tensor) - Second batch of augmented features.
                     labels_batch (tf.Tensor) - Batch of labels.
                 return:
                     features_batch_labelled (tf.Tensor) - Batch of features with labels.
-                    features_batch_unlabelled (tf.Tensor) - Batch of features without labels.
+                    features_batch_unlabelled_1 (tf.Tensor) - First batch of features without labels.
+                    features_batch_unlabelled_2 (tf.Tensor) - Second batch of features without labels.
                     label_batch_onehot (tf.Tensor) - Batch of one-hot encoded class labels.
             """
 
@@ -196,15 +235,16 @@ class PiModelDataLoader(BaseDataLoader):
             idx_unlabelled = tf.where(tf.equal(labels_batch, -1))[:,0]
 
             # split batch
-            features_batch_labelled = tf.gather(features_batch, indices = idx_labelled, axis = 0)
+            features_batch_labelled = tf.gather(features_batch_1, indices = idx_labelled, axis = 0)
             labels_batch_labelled = tf.gather(labels_batch, indices = idx_labelled, axis = 0)
 
-            features_batch_unlabelled = tf.gather(features_batch, indices = idx_unlabelled, axis = 0)
+            features_batch_unlabelled_1 = tf.gather(features_batch_1, indices = idx_unlabelled, axis = 0)
+            features_batch_unlabelled_2 = tf.gather(features_batch_2, indices = idx_unlabelled, axis = 0)
 
             # encode labels
             label_batch_onehot = tf.squeeze(tf.one_hot(labels_batch_labelled, num_classes))
 
-            return features_batch_labelled, features_batch_unlabelled, label_batch_onehot
+            return features_batch_labelled, features_batch_unlabelled_1, features_batch_unlabelled_2, label_batch_onehot
 
         return batch_func
 
