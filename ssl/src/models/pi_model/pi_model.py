@@ -34,7 +34,7 @@ class PiModel(BaseModel):
         """
         
         # define input
-        x_in = layers.Input(shape = self._input_shape)
+        x_in = layers.Input(shape = self._input_shape, name = 'input')
 
         # build architecture
         for block_idx, block in enumerate(self._architecture):
@@ -52,7 +52,7 @@ class PiModel(BaseModel):
                         kernel_size = block['k'],
                         strides = active_stride,
                         padding = block['pad'],
-                        name = block['name']
+                        name = f"{block['name']}_{repeat_idx}"
                     )(x)
 
                     # activation
@@ -61,20 +61,20 @@ class PiModel(BaseModel):
 
             # handle flatten blocks
             elif block['type'] == "flat":
-                x = layers.Flatten()(x)
+                x = layers.Flatten(name = block['name'])(x)
 
             # handle dropout blocks
             elif block['type'] == "drop":
-                x = layers.Dropout(block['ratio'])(x)
+                x = layers.Dropout(block['ratio'], name = block['name'])(x)
 
             # handle global avg pooling blocks
             elif block['type'] == "g_avg_pool":
-                x = layers.GlobalAveragePooling2D()(x)
+                x = layers.GlobalAveragePooling2D(name = block['name'])(x)
 
             # handle dense layer blocks
             elif block['type'] == "dense":
                 for repeat_idx in range(block['repeats']):
-                    x  = layers.Dense(block["units"])(x)
+                    x  = layers.Dense(block["units"], name = f"{block['name']}_{repeat_idx}")(x)
 
                     # activation
                     if block['act'] is not None:
@@ -83,7 +83,7 @@ class PiModel(BaseModel):
                 raise ValueError(f"Unknown block type: {block['type']}")
         
         # get output layer
-        x_out = layers.Dense(self._output_shape)(x)
+        x_out = layers.Dense(self._output_shape, name = 'output')(x)
         x_out = self._output_activation()(x_out)
 
         # get keras model callable
