@@ -1,10 +1,10 @@
 import tensorflow as tf
 
 
-def pi_model_mse(y_pred_1: tf.Tensor,
-                 y_pred_2: tf.Tensor) -> tf.Tensor:
+def pi_model_se(y_pred_1: tf.Tensor,
+                y_pred_2: tf.Tensor) -> tf.Tensor:
     """
-        Scaled mean squared error (MSE) loss.
+        Scaled squared error (SE) loss.
         As defined in the Pi Model original paper: https://arxiv.org/abs/1610.02242
 
         - Used to calculate the unsupervised loss component.
@@ -15,7 +15,7 @@ def pi_model_mse(y_pred_1: tf.Tensor,
             y_pred_1: (tf.Tensor) - Output predictions under first augmentation realisation.
             y_pred_2: (tf.Tensor) - Output predictions under second augmentation realisation.
         returns:
-            loss (tf.Tensor): Scaled MSE loss.
+            loss (tf.Tensor): Scaled SE loss.
     """
 
     _epsilon = tf.constant(1e-16)

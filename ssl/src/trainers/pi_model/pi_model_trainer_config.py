@@ -22,4 +22,4 @@ class PiModelTrainerConfig(BaseTrainerConfig):
     weight_ramp_up_epochs: int = 20
     num_epochs: int = 100
 
-    # TODO: should augmentation probabilities go here?
+    # TODO: add loss weight rampup function parameters here
