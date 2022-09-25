@@ -21,7 +21,7 @@ class PiModelDataLoaderConfig(BaseDataLoaderConfig):
 
     num_classes: int = 10
     batch_size: int = 32
-    batch_ratios: List[float, float] = [0.50, 0.50]
+    batch_ratios: List[float] = [0.50, 0.50]
     shuffle_buffer_size: int = 1000
     blur_chance: float = 0.05
     crop_chance: float = 0.33
