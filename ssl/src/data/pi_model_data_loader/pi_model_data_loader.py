@@ -267,7 +267,7 @@ class PiModelDataLoader(BaseDataLoader):
         if training:
             preproc_func = self._get_preprocessing_func_train()
             aug_func = self._get_augmentation_func()
-            batch_func = self._get_batch_func
+            batch_func = self._get_batch_func()
 
             # chain operators
             dataset = tf.data.Dataset.sample_from_datasets(
