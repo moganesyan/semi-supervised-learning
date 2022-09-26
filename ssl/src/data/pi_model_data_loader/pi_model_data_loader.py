@@ -15,15 +15,14 @@ class PiModelDataLoader(BaseDataLoader):
         Class for the Pi-Model data loader.
 
         args:
-            data_in (Union[tf.data.Dataset, Tuple[tf.data.Dataset, tf.data.Dataset]]):
-                Tuple of labelled and unlabelled dataset if training, or a test dataset.
+            data_in (tf.data.Dataset) - Dataset object.
             data_loader_config (PiModelDataLoaderConfig): Configuration class for the data loader.
         returns:
             None
     """
 
     def __init__(self,
-                 data_in: Union[tf.data.Dataset, Tuple[tf.data.Dataset, tf.data.Dataset]],
+                 data_in: tf.data.Dataset,
                  data_loader_config: PiModelDataLoaderConfig) -> None:
         super().__init__(data_loader_config)
         self._data_in = data_in
@@ -269,11 +268,7 @@ class PiModelDataLoader(BaseDataLoader):
             aug_func = self._get_augmentation_func()
             batch_func = self._get_batch_func()
 
-            # chain operators
-            dataset = tf.data.Dataset.sample_from_datasets(
-                [self._data_in[0], self._data_in[1]],
-                self._data_loader_config.batch_ratios
-            )
+            dataset = self._data_in
             dataset = dataset.shuffle(buffer_size=self._data_loader_config.shuffle_buffer_size)
             dataset = dataset.map(preproc_func)
             dataset = dataset.map(aug_func)
