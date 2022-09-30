@@ -41,7 +41,8 @@ class PiModelTrainer(BaseTrainer):
                    x_batch_labelled_2: tf.Tensor,
                    x_batch_unlabelled_1: tf.Tensor,
                    x_batch_unlabelled_2: tf.Tensor,
-                   y_batch: tf.Tensor) -> tf.Tensor:
+                   y_batch: tf.Tensor,
+                   loss_weight: tf.Tensor) -> tf.Tensor:
         """
             Apply a single training step on the input batch.
 
@@ -54,6 +55,8 @@ class PiModelTrainer(BaseTrainer):
                 x_batch_labelled_2 (tf.Tensor) - Second batch of augmented labelled input feature tensors.
                 x_batch_unlabelled_1 (tf.Tensor) - First batch of augmented unlabelled input feature tensors.
                 x_batch_unlabelled_2 (tf.Tensor) - Second batch of augmented unlabelled input feature tensors.
+                loss_weight (tf.Tensor) - Weight coefficient to balance supervised and unsupervised loss
+                    components.
                 y_batch (tf.Tensor) - Batch of input label tensors.
             returns:
                 total_loss (tf.Tensor) - Loss for the batch.
@@ -92,8 +95,7 @@ class PiModelTrainer(BaseTrainer):
                 not_nan_se
             )
 
-            # calculate weighted total loss (TODO: add weighting)
-            total_loss = loss_ce + loss_se
+            total_loss = loss_ce + (loss_weight * loss_se)
 
         # if tf.math.is_nan(total_loss):
         #     tf.print(x_batch_labelled_1, y_batch)
@@ -145,8 +147,25 @@ class PiModelTrainer(BaseTrainer):
                 None
         """
 
-        for epoch in tf.range(self._training_config.num_epochs):
+        # loss function weighting using gaussian rampup
+        loss_t = tf.linspace(
+            0.0,
+            1.0,
+            self._training_config.loss_ramp_up_epochs
+        )
+        loss_weights = tf.exp(
+            tf.constant(-5, tf.float32) * tf.math.pow((tf.constant(1,tf.float32) - loss_t),2)
+        )
+
+
+        for epoch in tf.range(self._training_config.num_epochs, dtype = tf.int32):
             train_loss = tf.constant(0, tf.float32)
+
+            # pick loss weight
+            if epoch <= self._training_config.loss_ramp_up_epochs:
+                loss_weight = loss_weights[epoch]
+            else:
+                loss_weight = tf.constant(1, tf.float32)
 
             for train_step_idx, (x_batch_labelled_1_train, x_batch_labelled_2_train, x_batch_unlabelled_1_train, x_batch_unlabelled_2_train, y_batch_train) in enumerate(self._train_dataset):
                 loss_train = self.train_step(
@@ -154,7 +173,8 @@ class PiModelTrainer(BaseTrainer):
                     x_batch_labelled_2_train,
                     x_batch_unlabelled_1_train,
                     x_batch_unlabelled_2_train,
-                    y_batch_train
+                    y_batch_train,
+                    loss_weight
                 )
                 train_loss += loss_train
             
