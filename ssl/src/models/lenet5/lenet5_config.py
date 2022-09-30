@@ -21,9 +21,9 @@ class Lenet5Config(BaseModelConfig):
     output_activation: Layer = Softmax
 
     architecture: List[Dict] = [
-        {'name': 'conv1', 'type': 'conv', 'num_blocks': 1, 'filters': 6, 'k': 5, 's': 2, 'pad': 'valid', 'act':  ReLU},
-        {'name': 'conv2', 'type': 'conv', 'num_blocks': 1, 'filters': 16, 'k': 5, 's': 2, 'pad': 'valid', 'act': ReLU},
-        {'name': 'conv3', 'type': 'conv', 'num_blocks': 1, 'filters': 120, 'k': 5, 's': 1, 'pad': 'valid', 'act': ReLU},
-        {'name': 'flat1', 'type': 'flat', 'num_blocks': 1},
-        {'name': 'fc1', 'type': 'dense', 'num_blocks': 1, 'units': 84, 'act': ReLU}
+        {'name': 'conv1', 'type': 'conv', 'repeats': 1, 'filters': 6, 'k': 5, 's': 2, 'pad': 'valid', 'act':  ReLU},
+        {'name': 'conv2', 'type': 'conv', 'repeats': 1, 'filters': 16, 'k': 5, 's': 2, 'pad': 'valid', 'act': ReLU},
+        {'name': 'conv3', 'type': 'conv', 'repeats': 1, 'filters': 120, 'k': 5, 's': 1, 'pad': 'valid', 'act': ReLU},
+        {'name': 'flat1', 'type': 'flat'},
+        {'name': 'fc1', 'type': 'dense', 'repeats': 1, 'units': 84, 'act': ReLU}
     ]

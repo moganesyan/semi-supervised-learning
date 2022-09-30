@@ -1,5 +1,3 @@
-import enum
-from errno import ENEEDAUTH
 import logging
 from typing import Any, Dict, List, Optional
 

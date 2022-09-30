@@ -1,10 +1,12 @@
 from typing import Union, Optional, Dict
-from dataclasses import dataclass, field
+
+from ..base_trainer.base_trainer_config import BaseTrainerConfig
 
 
-class BaseTrainerConfig():
+class PiModelTrainerConfig(BaseTrainerConfig):
     """
-        Base configuration class for all trainers.
+        Configuration class for the categorical Pi-Model trainer.
+        As seen in the original paper: https://arxiv.org/abs/1610.02242
 
         params:
             output_dir (str): Directory where output models and checkpoints
@@ -12,17 +14,10 @@ class BaseTrainerConfig():
             num_epochs (int): Number of training epochs.
             learning_rate (float): Learning rate for parameter updates.
             save_epochs (int): Number of epochs at which to save the model checkpoint.
+            loss_ramp_up_epochs (int): Number of epochs to ramp up the weight of the 
+                unsupervised component of the loss function.
             seed (int): Random seed.
     """
 
-    output_dir: str = None
     num_epochs: int = 100
-    save_epochs: Optional[int] = 10
-    seed: int = 42
-
-    optimizer: Dict = {
-        "name": "adam",
-        "params": {
-            "learning_rate": 1e-4
-        }
-    }
+    loss_ramp_up_epochs: int = 50

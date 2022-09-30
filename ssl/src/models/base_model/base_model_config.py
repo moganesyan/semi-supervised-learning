@@ -14,6 +14,6 @@ class BaseModelConfig():
             architecture (Dict) - Architecture config object.
     """
 
-    input_shape: Tuple[int] = (224, 224, 3)
-    output_shape: Union[int, Tuple[int]] = 10
+    input_shape: Tuple[int] = None
+    output_shape: Union[int, Tuple[int]] = None
     architecture: List[Dict] = None
