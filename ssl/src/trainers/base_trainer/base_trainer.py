@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 
 import tensorflow as tf
 
-from .base_config import BaseTrainerConfig
+from .base_trainer_config import BaseTrainerConfig
 from ..trainer_utils import set_seed
 from ..trainer_exceptions import MissingOptimizerConfigError
 
