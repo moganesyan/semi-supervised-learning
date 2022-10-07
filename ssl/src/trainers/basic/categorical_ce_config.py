@@ -1,6 +1,6 @@
 from typing import Union, Optional, Dict
 
-from ..base_trainer.base_config import BaseTrainerConfig
+from ..base_trainer.base_trainer_config import BaseTrainerConfig
 
 
 class CategoricalCETrainerConfig(BaseTrainerConfig):
