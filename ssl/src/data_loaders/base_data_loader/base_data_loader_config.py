@@ -24,7 +24,9 @@ class BaseDataLoaderConfig():
         params:
             num_classes (int) - Number of classes (unique labels).
             batch_size (int) - Batch size to be used for training and evaluation.
+            seed (int) - Random seed.
     """
 
     num_classes: int = None
     batch_size: int = None
+    seed: int = 42

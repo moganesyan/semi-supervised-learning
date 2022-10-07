@@ -5,6 +5,7 @@ from typing import Union, Optional, Dict
 import tensorflow as tf
 
 from .base_data_loader_config import BaseDataLoaderConfig
+from ..data_loader_utils import set_seed
 
 
 class BaseDataLoader(ABC):
@@ -21,6 +22,7 @@ class BaseDataLoader(ABC):
 
     def __init__(self, data_loader_config: BaseDataLoaderConfig) -> None:
         self._data_loader_config = data_loader_config
+        set_seed(data_loader_config.seed)
 
     @abstractmethod
     def _build_data_loader(self, training: bool) -> tf.data.Dataset:

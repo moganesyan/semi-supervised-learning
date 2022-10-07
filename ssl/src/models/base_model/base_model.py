@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
+import imp
 
 from typing import Tuple, Union
 
 import tensorflow as tf
 
 from .base_model_config import BaseModelConfig
-
+from ..model_utils import set_seed
 
 class BaseModel(ABC):
     """
@@ -21,6 +22,7 @@ class BaseModel(ABC):
                  model_config: BaseModelConfig) -> None:
 
         self._model_config = model_config
+        set_seed(model_config.seed)
 
     @abstractmethod
     def _build_network(self) -> tf.keras.models.Model:
