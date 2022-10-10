@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 from ..base_trainer.base_trainer import BaseTrainer
-from .categorical_ce_trainer_config import CategoricalCETrainerConfig
+from .categorical_ce_config import CategoricalCETrainerConfig
 
 from ...losses.classification import categorical_cross_entropy
 

@@ -5,10 +5,10 @@ import numpy as np
 import tensorflow as tf
 
 from ..base_trainer.base_trainer import BaseTrainer
-from .pi_model_trainer_config import PiModelTrainerConfig
+from .pi_model_config import PiModelTrainerConfig
 
 from ...losses.classification import categorical_cross_entropy
-from ...losses.regression import pi_model_se
+from ...losses.consistency import pi_model_se
 
 # set up logger
 logger = logging.getLogger(__name__)

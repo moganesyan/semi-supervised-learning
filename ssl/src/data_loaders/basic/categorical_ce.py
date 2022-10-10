@@ -3,7 +3,7 @@ from typing import Union, Optional, Dict, Callable, Tuple, Union
 import tensorflow as tf
 
 from ..base_data_loader.base_data_loader import BaseDataLoader
-from .categorical_ce_data_loader_config import CategoricalCEDataLoaderConfig
+from .categorical_ce_config import CategoricalCEDataLoaderConfig
 
 from ...augmenters.affine import apply_crop_and_resize
 from ...augmenters.colour import apply_colour_distortion
