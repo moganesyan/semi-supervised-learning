@@ -16,8 +16,8 @@ def get_gaussian_kernel(k: int, sigma: float) -> tf.Tensor:
 
     x = tf.range(-k // 2 + 1, k // 2 + 1, dtype = tf.float32)
 
-    x_gauss = tf.math.exp(-(tf.pow(x, 2) / (2 * tf.pow(sigma, 2))))
-    x_gauss = x_gauss / tf.math.sqrt((2 * 3.14159 * tf.pow(sigma, 2)))
+    x_gauss = tf.math.exp(-(tf.pow(x, 2.0) / (2.0 * tf.pow(sigma, 2.0))))
+    x_gauss = x_gauss / tf.math.sqrt((2.0 * 3.14159 * tf.pow(sigma, 2.0)))
 
     kernel_gauss = tf.tensordot(x_gauss, x_gauss, axes = 0)
     x_scale = tf.reduce_sum(kernel_gauss)
@@ -28,15 +28,17 @@ def get_gaussian_kernel(k: int, sigma: float) -> tf.Tensor:
 
 
 def apply_gaussian_blur(x_in: tf.Tensor,
+                        kernel_ratio: float = 0.10,
                         blur_strength: Tuple[float, float] = (0.1, 2.0),
                         **kwargs) -> tf.Tensor:
     """
         Apply 2D gaussian blur to input tensor.
-        - Uniformly sample blur strength [0.1, 2.0]
-        - Kernel size is 10% of the input tensor height / width
+        - Uniformly sample blur strength [0.1, 2.0].
+        - Kernel size is `kernel_ratio` of the input tensor width.
 
         args:
             x_in (tf.Tensor): Input tensor.
+            kernel_ratio (float): ratio of the input tensor width to set as the blur kernel size.
             blur_strength (Tuple[float, float]): Blur strength range to sample from.
         returns:
             x_out (tf.Tensor): Augmented tensor.
@@ -47,7 +49,7 @@ def apply_gaussian_blur(x_in: tf.Tensor,
 
     blur_strength = tf.random.uniform(
         (), blur_strength_min, blur_strength_max)
-    kernel_size = tf.cast(x_in.shape[1], tf.float32) * tf.constant(0.10)
+    kernel_size = tf.cast(x_in.shape[1], tf.float32) * tf.constant(kernel_ratio)
     kernel_size = tf.cast(kernel_size, tf.int32)
 
     kernel = get_gaussian_kernel(kernel_size, blur_strength)
