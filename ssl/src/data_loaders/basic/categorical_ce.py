@@ -80,9 +80,9 @@ class CategoricalCEDataLoader(BaseDataLoader):
                 aug_func (Callable) - Data augmentation function.
         """
 
-        blur_chance = self._data_loader_config.blur_chance
-        crop_chance = self._data_loader_config.crop_chance
-        jitter_chance = self._data_loader_config.jitter_chance
+        blur_chance = self._data_loader_config.blur_params['chance']
+        crop_chance = self._data_loader_config.crop_params['chance']
+        jitter_chance = self._data_loader_config.jitter_params['chance']
 
         def aug_func(features: tf.Tensor, label: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
             """
@@ -107,19 +107,22 @@ class CategoricalCEDataLoader(BaseDataLoader):
             # apply random gaussian blur
             if roll_blur <= blur_chance:
                 features_aug = apply_gaussian_blur(
-                    features_aug
+                    features_aug,
+                    **self._data_loader_config.blur_params
                 )
 
             # apply random crop and resize
             if roll_crop <= crop_chance:
                 features_aug = apply_crop_and_resize(
-                    features_aug
+                    features_aug,
+                    **self._data_loader_config.crop_params
                 )
 
             # apply random colour jitter / distortion
             if roll_jitter <= jitter_chance:
                 features_aug = apply_colour_distortion(
-                    features_aug
+                    features_aug,
+                    **self._data_loader_config.jitter_params
                 )
 
             return tf.squeeze(features_aug), label
