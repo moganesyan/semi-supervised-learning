@@ -46,7 +46,7 @@ def colour_drop(x_in: tf.Tensor) -> tf.Tensor:
 
 
 def apply_colour_distortion(x_in: tf.Tensor,
-                            distort_strength: float = 1.0,
+                            distort_strength: float = 0.50,
                             **kwargs) -> tf.Tensor:
     """
         Apply colour distortion augmentations.
