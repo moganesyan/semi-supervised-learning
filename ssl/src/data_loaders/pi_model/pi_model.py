@@ -111,9 +111,9 @@ class PiModelDataLoader(BaseDataLoader):
                 aug_func (Callable) - Data augmentation function.
         """
 
-        blur_chance = self._data_loader_config.blur_chance
-        crop_chance = self._data_loader_config.crop_chance
-        jitter_chance = self._data_loader_config.jitter_chance
+        blur_chance = self._data_loader_config.blur_params['chance']
+        crop_chance = self._data_loader_config.crop_params['chance']
+        jitter_chance = self._data_loader_config.jitter_params['chance']
 
         def aug_func(features: tf.Tensor, label: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
             """
@@ -148,19 +148,22 @@ class PiModelDataLoader(BaseDataLoader):
             # apply random gaussian blur
             if roll_blur_1 <= blur_chance:
                 features_aug_1 = apply_gaussian_blur(
-                    features_aug_1
+                    features_aug_1,
+                    **self._data_loader_config.blur_params
                 )
 
             # apply random crop and resize
             if roll_crop_1 <= crop_chance:
                 features_aug_1 = apply_crop_and_resize(
-                    features_aug_1
+                    features_aug_1,
+                    **self._data_loader_config.crop_params
                 )
 
             # apply random colour jitter / distortion
             if roll_jitter_1 <= jitter_chance:
                 features_aug_1 = apply_colour_distortion(
-                    features_aug_1
+                    features_aug_1,
+                    **self._data_loader_config.jitter_params
                 )
 
             # apply the second realisation of random augmentations
@@ -168,19 +171,22 @@ class PiModelDataLoader(BaseDataLoader):
             # apply random gaussian blur
             if roll_blur_2 <= blur_chance:
                 features_aug_2 = apply_gaussian_blur(
-                    features_aug_2
+                    features_aug_2,
+                    **self._data_loader_config.blur_params
                 )
 
             # apply random crop and resize
             if roll_crop_2 <= crop_chance:
                 features_aug_2 = apply_crop_and_resize(
-                    features_aug_2
+                    features_aug_2,
+                    **self._data_loader_config.crop_params
                 )
 
             # apply random colour jitter / distortion
             if roll_jitter_2 <= jitter_chance:
                 features_aug_2 = apply_colour_distortion(
-                    features_aug_2
+                    features_aug_2,
+                    **self._data_loader_config.jitter_params
                 )
 
             return tf.squeeze(features_aug_1), tf.squeeze(features_aug_2), label

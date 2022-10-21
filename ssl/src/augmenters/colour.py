@@ -18,12 +18,20 @@ def colour_jitter(x_in: tf.Tensor, strength: float) -> tf.Tensor:
             x_out (tf.Tensor): Augmented image tensor.
     """
 
-    x = tf.image.random_brightness(x_in, max_delta=0.8 * strength)
-    x = tf.image.random_contrast(x, lower=1-0.8 * strength, upper=1+0.8 * strength)
+    x = tf.image.random_brightness(x_in, max_delta = 0.8 * strength)
+    x = tf.image.random_contrast(
+        x,
+        lower = 1 - 0.8 * strength,
+        upper = 1 + 0.8 * strength
+    )
     if x_in.shape[-1] == 3:
-        x = tf.image.random_saturation(x, lower=1-0.8 * strength, upper=1+0.8 * strength)
-        x = tf.image.random_hue(x, max_delta=0.2 * strength)
-    x_out = tf.clip_by_value(x, 0, 1)
+        x = tf.image.random_saturation(
+            x,
+            lower = 1 - 0.8 * strength,
+            upper = 1 + 0.8 * strength
+        )
+        x = tf.image.random_hue(x, max_delta = 0.2 * strength)
+    x_out = tf.clip_by_value(x, 0.0, 1.0)
 
     return x_out
 
@@ -46,7 +54,7 @@ def colour_drop(x_in: tf.Tensor) -> tf.Tensor:
 
 
 def apply_colour_distortion(x_in: tf.Tensor,
-                            distort_strength: float = 1.0,
+                            distort_strength: float = 0.50,
                             **kwargs) -> tf.Tensor:
     """
         Apply colour distortion augmentations.
@@ -60,9 +68,11 @@ def apply_colour_distortion(x_in: tf.Tensor,
     """
 
     apply_jitter = tf.random.uniform(
-        (), minval = 0, maxval = 1.0, dtype = tf.float32)
+        (), minval = 0, maxval = 1.0, dtype = tf.float32
+    )
     apply_drop = tf.random.uniform(
-        (), minval = 0, maxval = 1.0, dtype = tf.float32)
+        (), minval = 0, maxval = 1.0, dtype = tf.float32
+    )
 
     x_out = x_in
     if apply_jitter <= 0.80:

@@ -12,14 +12,30 @@ class CategoricalCEDataLoaderConfig(BaseDataLoaderConfig):
                 to be used for one-hot encoding the labels.
             batch_size (int) - Batch size to be used for training and evaluation.
             shuffle_buffer_size (int): Buffer size for the dataset shuffle operator.
-            blur_chance (float): Probability (decimal) at which random blur augmentor should be applied.
-            crop_chance (float): Probability (decimal) at which random crop & resize should be applied.
-            jitter_chance (float): Probability (decimal) at which random colour jitter should be applied.
+            blur_params (Dict): Parameters for the gaussian blur augmenter.
+            crop_params (Dict): Parameters for the random crop-and-resize augmenter.
+            jitter_params (Dict): Parameters for the colour jitter augmenter.
     """
 
     num_classes: int = 10
     batch_size: int = 32
     shuffle_buffer_size: int = 1000
-    blur_chance: float = 0.05
-    crop_chance: float = 0.10
-    jitter_chance: float = 0.20
+
+    # augmentation parameters
+    blur_params: Dict = {
+        'chance': 0.05,
+        'kernel_ratio': 0.10,
+        'blur_strength': (0.1, 2.0)
+    }
+
+    crop_params: Dict = {
+        'chance': 0.10,
+        'crop_size': (0.08, 1.0),
+        'aspect_range': (0.75, 1.33),
+        'num_tries': 100
+    }
+
+    jitter_params: Dict = {
+        'chance': 0.33,
+        'distort_strength': 0.50
+    }
