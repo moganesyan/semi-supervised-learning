@@ -10,19 +10,22 @@ class BaseTrainerConfig():
             output_dir (str): Directory where output models and checkpoints
                 will be stored.
             num_epochs (int): Number of training epochs.
-            learning_rate (float): Learning rate for parameter updates.
             save_epochs (int): Number of epochs at which to save the model checkpoint.
+            lr_schedule (Optional[Dict]): Configuration for the learning rate schedule.
+            optimizer (Dict): Configuration for the optimizer.
             seed (int): Random seed.
     """
 
     output_dir: str = None
     num_epochs: int = 100
     save_epochs: Optional[int] = 10
-    seed: int = 42
 
+    lr_schedule: Optional[Dict] = None
     optimizer: Dict = {
         "name": "adam",
+        "learning_rate": 1e-4,
         "params": {
-            "learning_rate": 1e-4
         }
     }
+
+    seed: int = 42

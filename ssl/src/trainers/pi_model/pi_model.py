@@ -29,11 +29,10 @@ class PiModelTrainer(BaseTrainer):
         train_dataset: tf.data.Dataset,
         training_config: PiModelTrainerConfig,
         val_dataset: Optional[tf.data.Dataset] = None,
-        scheduler: Optional[tf.keras.optimizers.schedules.LearningRateSchedule] = None,
-        callbacks: Optional[List[tf.keras.callbacks.Callback]] = None) -> None:
+        callbacks: Optional[tf.keras.callbacks.CallbackList] = None) -> None:
         super().__init__(
             model, train_dataset, training_config,
-            val_dataset, scheduler, callbacks
+            val_dataset, callbacks
         )
 
     def train_step(self,

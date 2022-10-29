@@ -12,8 +12,9 @@ class PiModelTrainerConfig(BaseTrainerConfig):
             output_dir (str): Directory where output models and checkpoints
                 will be stored.
             num_epochs (int): Number of training epochs.
-            learning_rate (float): Learning rate for parameter updates.
             save_epochs (int): Number of epochs at which to save the model checkpoint.
+            lr_schedule (Optional[Dict]): Configuration for the learning rate schedule.
+            optimizer (Dict): Configuration for the optimizer.
             loss_ramp_up_epochs (int): Number of epochs to ramp up the weight of the 
                 unsupervised component of the loss function.
             seed (int): Random seed.
