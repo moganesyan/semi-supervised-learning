@@ -26,7 +26,6 @@ class BaseTrainer(ABC):
             train_dataset (tf.data.Dataset): Training dataset.
             training_config (BaseTrainerConfig): Training config.
             val_dataset (tf.data.Dataset): Validation dataset.
-            callbacks (tf.keras.callbacks.CallbackList): List of callbacks to be used during training.
     """
 
     def __init__(
@@ -34,8 +33,7 @@ class BaseTrainer(ABC):
         model,
         train_dataset: tf.data.Dataset,
         training_config: BaseTrainerConfig,
-        val_dataset: Optional[tf.data.Dataset] = None,
-        callbacks: Optional[tf.keras.callbacks.CallbackList] = None) -> None:
+        val_dataset: Optional[tf.data.Dataset] = None) -> None:
 
         self._model = model
         self._train_dataset = train_dataset
@@ -44,7 +42,7 @@ class BaseTrainer(ABC):
         
         self._lr_schedule = self._get_lr_schedule()
         self._optimizer = self._get_optimizer()
-        self._callbacks = callbacks
+        self._callbacks = self._get_callbacks()
 
         # set training random seed
         set_seed(training_config.seed)
@@ -53,9 +51,9 @@ class BaseTrainer(ABC):
         """
             Get learning rate schedule from trainer config.
 
-            Supported schedules are: ['cosine', 'exponential', 'inverse_time', 'custom']
+            Supported schedules are: ['cosine', 'exponential', 'inverse_time']
 
-            Custom schedules (TODO) need to be implemented in the style of a keras
+            Custom schedules need to be implemented in the style of a keras
             learning rate schedule, by using the `tf.keras.optimizers.schedules.LearningRateSchedule`
                 base class.
         
@@ -84,9 +82,9 @@ class BaseTrainer(ABC):
         """
             Get optimizer from trainer config.
 
-            Supported optimizers are: ['adam', 'sgd', 'rmsprop', 'custom']
+            Supported optimizers are: ['adam', 'sgd', 'rmsprop']
 
-            Custom optimizers (TODO) need to be implemented in the style of a keras
+            Custom optimizers need to be implemented in the style of a keras
             optimizer, by using the `tf.keras.optimizers.Optimizer` base class.
 
             Will use the learning rate schedule when available.
@@ -115,6 +113,37 @@ class BaseTrainer(ABC):
         else:
             raise NotImplementedError("Custom optimizers not yet implemented.")
 
+    def _get_callbacks(self) -> tf.keras.callbacks.CallbackList:
+        """
+            Get callbacks from the trainer config.
+
+            Supported callbacks are: []
+
+            NOTE that keras pre-built callbacks won't work as they're too
+                reliant on the way keras training loops are designed.
+
+            Custom callbacks need to be implemented in the style of a keras
+            callback, by using the `tf.keras.callbacks.Callback` base class.
+        
+            args:
+                None
+            returns:
+                callbacks (tf.keras.callbacks.CallbackList) - Callbacks to be used during training.
+        """
+
+        callback_config = self._training_config.callbacks
+
+        if callback_config is None:
+            return
+
+        callbacks = []
+
+        for callback in callback_config:
+            raise NotImplementedError("Custom callbacks not yet implemented.")
+
+        callbacks = tf.keras.callbacks.CallbackList(callbacks)
+        return callbacks
+ 
     @abstractmethod
     def train_step(self) -> None:
         """

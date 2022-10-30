@@ -26,11 +26,10 @@ class CategoricalCETrainer(BaseTrainer):
         model,
         train_dataset: tf.data.Dataset,
         training_config: CategoricalCETrainerConfig,
-        val_dataset: Optional[tf.data.Dataset] = None,
-        callbacks: Optional[tf.keras.callbacks.CallbackList] = None) -> None:
+        val_dataset: Optional[tf.data.Dataset] = None) -> None:
         super().__init__(
-            model, train_dataset, training_config,
-            val_dataset, callbacks
+            model, train_dataset,
+            training_config, val_dataset
         )
     
     def train_step(self, x_batch: tf.Tensor, y_batch: tf.Tensor) -> tf.Tensor:
@@ -90,24 +89,62 @@ class CategoricalCETrainer(BaseTrainer):
                 None
         """
 
-        for epoch in tf.range(self._training_config.num_epochs):
-            train_loss = 0
+        if self._callbacks is not None:
+            self._callbacks.on_train_begin()
 
-            for train_step_idx, (x_batch_train, y_batch_train) in enumerate(self._train_dataset):
+        for epoch in tf.range(self._training_config.num_epochs):
+            if self._callbacks is not None:
+                self._callbacks.on_epoch_begin(epoch)
+
+            train_loss = tf.constant(0, dtype = tf.float32)
+            train_step_idx = tf.constant(0, dtype = tf.float32)
+
+            for x_batch_train, y_batch_train in self._train_dataset:
+                if self._callbacks is not None:
+                    self._callbacks.on_train_batch_begin(train_step_idx)
+
                 loss_train = self.train_step(x_batch_train, y_batch_train)
                 train_loss += loss_train
+
+                if self._callbacks is not None:
+                    self._callbacks.on_train_batch_end(
+                    train_step_idx,
+                    logs = {'loss': loss_train}
+                    )
+
+                train_step_idx += 1
             
-            train_loss /=  len(self._train_dataset)
+            train_loss /=  train_step_idx
 
             if self._val_dataset is not None:
-                val_loss = 0
+                val_loss = tf.constant(0, dtype = tf.float32)
+                val_step_idx = tf.constant(0, dtype = tf.float32)
 
-                for val_step_idx, (x_batch_val, y_batch_val) in enumerate(self._val_dataset):
+                for x_batch_val, y_batch_val in self._val_dataset:
                     loss_val = self.eval_step(x_batch_val, y_batch_val)
                     val_loss += loss_val
+                    val_step_idx += 1
                 
-                val_loss /= len(self._val_dataset)
+                val_loss /= val_step_idx
                 
                 tf.print(f"Training loss at epoch {epoch} is : {train_loss:.2f}. Validation loss is : {val_loss:.2f}.")
+
+                if self._callbacks is not None:
+                    self._callbacks.on_epoch_end(
+                        epoch,
+                        logs = {'loss': train_loss, 'val_loss': val_loss}
+                    )
             else:
                 tf.print(f"Training loss at epoch {epoch} is : {train_loss:.2f}.")
+
+                if self._callbacks is not None:
+                    self._callbacks.on_epoch_end(
+                        epoch,
+                        logs = {'loss': train_loss}
+                    )
+
+        if self._callbacks is not None:
+            if self._val_dataset is not None:
+                self._callbacks.on_train_end(logs = {'loss': train_loss, 'val_loss': val_loss})
+            else:
+                self._callbacks.on_train_end(logs = {'loss': train_loss})

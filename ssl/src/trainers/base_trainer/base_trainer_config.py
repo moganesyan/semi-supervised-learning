@@ -1,4 +1,4 @@
-from typing import Union, Optional, Dict
+from typing import Union, Optional, Dict, List
 from dataclasses import dataclass, field
 
 
@@ -13,6 +13,7 @@ class BaseTrainerConfig():
             save_epochs (int): Number of epochs at which to save the model checkpoint.
             lr_schedule (Optional[Dict]): Configuration for the learning rate schedule.
             optimizer (Dict): Configuration for the optimizer.
+            callbacks (Optional[List[Dict]]): List of callbacks and their configurations.
             seed (int): Random seed.
     """
 
@@ -27,5 +28,6 @@ class BaseTrainerConfig():
         "params": {
         }
     }
+    callbacks: Optional[List[Dict]] = None
 
     seed: int = 42

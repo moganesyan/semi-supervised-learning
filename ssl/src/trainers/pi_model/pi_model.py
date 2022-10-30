@@ -28,11 +28,10 @@ class PiModelTrainer(BaseTrainer):
         model,
         train_dataset: tf.data.Dataset,
         training_config: PiModelTrainerConfig,
-        val_dataset: Optional[tf.data.Dataset] = None,
-        callbacks: Optional[tf.keras.callbacks.CallbackList] = None) -> None:
+        val_dataset: Optional[tf.data.Dataset] = None) -> None:
         super().__init__(
-            model, train_dataset, training_config,
-            val_dataset, callbacks
+            model, train_dataset,
+            training_config, val_dataset
         )
 
     def train_step(self,
