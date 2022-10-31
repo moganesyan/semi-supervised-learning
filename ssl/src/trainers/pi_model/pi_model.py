@@ -95,11 +95,16 @@ class PiModelTrainer(BaseTrainer):
 
             total_loss = loss_ce + (loss_weight * loss_se)
 
-        # if tf.math.is_nan(total_loss):
-        #     tf.print(x_batch_labelled_1, y_batch)
-        #     tf.print(loss_ce)
-        #     tf.print(loss_se_labelled)
-        #     tf.print(loss_se_unlabelled)
+        # iters = self._optimizer.iterations
+        # if iters % 250 == 0:
+        #     if not tf.math.is_nan(total_loss):
+        #         # tf.print(x_batch_labelled_1, y_batch)
+        #         tf.print(tf.strings.format("CE loss at iteration {}: {}", (iters, loss_ce)))
+        #         # tf.print(tf.strings.format("SE loss (labelled) at iteration {}: {}", (iters, loss_se_labelled)))
+        #         # tf.print(tf.strings.format("SE loss (unlabelled) at iteration {}: {}", (iters, loss_se_unlabelled)))
+        #         tf.print(tf.strings.format("SE loss at iteration {}: {}", (iters, loss_se)))
+        #     else:
+        #         tf.print(tf.strings.format("NaN loss at iteration: {}", (iters)))
 
         self._optimizer.minimize(
             total_loss,
@@ -160,7 +165,7 @@ class PiModelTrainer(BaseTrainer):
             train_loss = tf.constant(0, tf.float32)
 
             # pick loss weight
-            if epoch <= self._training_config.loss_ramp_up_epochs:
+            if epoch < self._training_config.loss_ramp_up_epochs:
                 loss_weight = loss_weights[epoch]
             else:
                 loss_weight = tf.constant(1, tf.float32)
