@@ -81,13 +81,12 @@ class PiModelTrainer(BaseTrainer):
 
             # get squared error for all
             loss_se_labelled = pi_model_se(y_pred_batch_labelled_1, y_pred_batch_labelled_2)
-
             not_nan_se_labelled = tf.dtypes.cast(
                 tf.math.logical_not(tf.math.is_nan(loss_se_labelled)),
                 dtype=tf.float32
             )
             loss_se_labelled = tf.math.multiply_no_nan(
-                loss_se,
+                loss_se_labelled,
                 not_nan_se_labelled
             )
 
@@ -97,7 +96,7 @@ class PiModelTrainer(BaseTrainer):
                 dtype=tf.float32
             )
             loss_se_unlabelled = tf.math.multiply_no_nan(
-                loss_se,
+                loss_se_unlabelled,
                 not_nan_se_unlabelled
             )
 
