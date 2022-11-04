@@ -113,6 +113,8 @@ class PiModelTrainer(BaseTrainer):
         #         # tf.print(tf.strings.format("SE loss (labelled) at iteration {}: {}", (iters, loss_se_labelled)))
         #         # tf.print(tf.strings.format("SE loss (unlabelled) at iteration {}: {}", (iters, loss_se_unlabelled)))
         #         tf.print(tf.strings.format("SE loss at iteration {}: {}", (iters, loss_se)))
+        #         # tf.print(tf.strings.format("output vectors (unlabelled) 1: {}", (y_pred_batch_unlabelled_1)))
+        #         # tf.print(tf.strings.format("output vectors (unlabelled) 2: {}", (y_pred_batch_unlabelled_2)))
         #     else:
         #         tf.print(tf.strings.format("NaN loss at iteration: {}", (iters)))
 
@@ -137,11 +139,18 @@ class PiModelTrainer(BaseTrainer):
                 y_batch (tf.Tensor) - Batch of input label tensors.
             returns:
                 loss (tf.Tensor) - Loss for the batch.
+                matches (tf.Tensor) - Binary tensor indicating whether
+                    the prediction matches the true label.
         """
 
         y_pred_batch = self._model(x_batch, training = False)
         loss = categorical_cross_entropy(y_pred_batch, y_batch)
-        return loss
+
+        y_batch_label = tf.math.argmax(y_batch, axis = -1)
+        y_batch_predicted = tf.math.argmax(y_pred_batch, axis = -1)
+
+        matches = tf.cast(tf.equal(y_batch_label, y_batch_predicted), tf.float32)
+        return loss, matches
     
     def train(self) -> None:
         """
@@ -166,10 +175,9 @@ class PiModelTrainer(BaseTrainer):
             1.0,
             self._training_config.loss_ramp_up_epochs
         )
-        loss_weights = tf.exp(
+        loss_weights = self._training_config.unsup_loss_weight * tf.exp(
             tf.constant(-5, tf.float32) * tf.math.pow((tf.constant(1,tf.float32) - loss_t),2)
         )
-
 
         for epoch in tf.range(self._training_config.num_epochs, dtype = tf.int32):
             train_loss = tf.constant(0, tf.float32)
@@ -178,9 +186,11 @@ class PiModelTrainer(BaseTrainer):
             if epoch < self._training_config.loss_ramp_up_epochs:
                 loss_weight = loss_weights[epoch]
             else:
-                loss_weight = tf.constant(1, tf.float32)
+                loss_weight = tf.constant(self._training_config.unsup_loss_weight, tf.float32)
 
-            for train_step_idx, (x_batch_labelled_1_train, x_batch_labelled_2_train, x_batch_unlabelled_1_train, x_batch_unlabelled_2_train, y_batch_train) in enumerate(self._train_dataset):
+            train_step_idx = tf.constant(0, dtype = tf.float32)
+
+            for x_batch_labelled_1_train, x_batch_labelled_2_train, x_batch_unlabelled_1_train, x_batch_unlabelled_2_train, y_batch_train in self._train_dataset:
                 loss_train = self.train_step(
                     x_batch_labelled_1_train,
                     x_batch_labelled_2_train,
@@ -190,26 +200,28 @@ class PiModelTrainer(BaseTrainer):
                     loss_weight
                 )
                 train_loss += loss_train
+                train_step_idx += 1
             
-            train_loss /=  tf.cast(self._train_dataset.cardinality(), tf.float32)
+            train_loss /=  train_step_idx
 
             if self._val_dataset is not None:
+                matches_val = []
                 val_loss = tf.constant(0, tf.float32)
+                val_step_idx = tf.constant(0, dtype = tf.float32)
 
-                for val_step_idx, (x_batch_val, y_batch_val) in enumerate(self._val_dataset):
-                    loss_val = self.eval_step(x_batch_val, y_batch_val)
+                for x_batch_val, y_batch_val in self._val_dataset:
+                    loss_val, match_val = self.eval_step(x_batch_val, y_batch_val)
+                    matches_val.append(match_val.numpy())
                     val_loss += loss_val
+                    val_step_idx += 1
                 
-                val_loss /= tf.cast(self._val_dataset.cardinality(), tf.float32)
+                val_loss /= val_step_idx
+                matches_val = np.concatenate(matches_val)
+                val_acc = 100 * (np.sum(matches_val) / len(matches_val))
                 
-                out_str = tf.strings.format(
-                    "Training loss at epoch {} is: {}. Validation loss is: {}",
-                    (epoch, train_loss, val_loss)
+                tf.print(
+                    f"Training loss at epoch {epoch} is : {train_loss:.2f}. Validation loss is : {val_loss:.2f}. Validation acc. is : {val_acc:.2f}."
                 )
-                tf.print(out_str)
+
             else:
-                out_str = tf.strings.format(
-                    "Training loss at epoch {} is: {}.",
-                    (epoch, train_loss)
-                )
-                tf.print(out_str)
+                tf.print(f"Training loss at epoch {epoch} is : {train_loss:.2f}.")

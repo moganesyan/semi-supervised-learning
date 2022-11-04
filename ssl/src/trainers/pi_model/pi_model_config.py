@@ -17,8 +17,10 @@ class PiModelTrainerConfig(BaseTrainerConfig):
             optimizer (Dict): Configuration for the optimizer.
             loss_ramp_up_epochs (int): Number of epochs to ramp up the weight of the 
                 unsupervised component of the loss function.
+            unsup_loss_weight (float): Weight of the unsupervised loss component.
             seed (int): Random seed.
     """
 
     num_epochs: int = 100
     loss_ramp_up_epochs: int = 50
+    unsup_loss_weight: float = 1.0
