@@ -26,4 +26,5 @@ def pi_model_se(y_pred_1: tf.Tensor,
         axis = -1
     )
 
-    return tf.reduce_mean(mse / num_classes)
+    # return tf.reduce_mean(mse) / num_classes
+    return tf.reduce_mean(mse)

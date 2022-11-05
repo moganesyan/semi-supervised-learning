@@ -55,30 +55,30 @@ def colour_drop(x_in: tf.Tensor) -> tf.Tensor:
 
 def apply_colour_distortion(x_in: tf.Tensor,
                             distort_strength: float = 0.50,
+                            drop_chance: float = 0.05,
                             **kwargs) -> tf.Tensor:
     """
         Apply colour distortion augmentations.
-        1) Apply random colour jitter.
+        1) Apply colour jitter.
         2) Apply random colour drop.
         args:
             x_in (tf.Tensor): Input image tensor.
             distort_strength (float): Strength of colour distortion.
+            drop_chance (float): Chance of applying a colour drop.
         returns:
             x_out (tf.Tensor): Augmented image tensor.
     """
 
-    apply_jitter = tf.random.uniform(
-        (), minval = 0, maxval = 1.0, dtype = tf.float32
-    )
     apply_drop = tf.random.uniform(
         (), minval = 0, maxval = 1.0, dtype = tf.float32
     )
 
-    x_out = x_in
-    if apply_jitter <= 0.80:
-        x_out = colour_jitter(x_out, distort_strength)
+    # apply colour jitter
+    x_out = colour_jitter(x_in, distort_strength)
+
+    # small chance to drop colour
     if x_in.shape[-1] == 3:
-        if apply_drop <= 0.20:
+        if apply_drop <= drop_chance:
             x_out = colour_drop(x_out)
 
     return x_out

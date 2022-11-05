@@ -10,10 +10,10 @@ class CategoricalCETrainerConfig(BaseTrainerConfig):
         params:
             output_dir (str): Directory where output models and checkpoints
                 will be stored.
-            batch_size (int): Training batch size.
             num_epochs (int): Number of training epochs.
-            learning_rate (float): Learning rate for parameter updates.
             save_epochs (int): Number of epochs at which to save the model checkpoint.
+            lr_schedule (Optional[Dict]): Configuration for the learning rate schedule.
+            optimizer (Dict): Configuration for the optimizer.
             seed (int): Random seed.
     """
 

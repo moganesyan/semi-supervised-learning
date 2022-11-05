@@ -28,12 +28,10 @@ class PiModelTrainer(BaseTrainer):
         model,
         train_dataset: tf.data.Dataset,
         training_config: PiModelTrainerConfig,
-        val_dataset: Optional[tf.data.Dataset] = None,
-        scheduler: Optional[tf.keras.optimizers.schedules.LearningRateSchedule] = None,
-        callbacks: Optional[List[tf.keras.callbacks.Callback]] = None) -> None:
+        val_dataset: Optional[tf.data.Dataset] = None) -> None:
         super().__init__(
-            model, train_dataset, training_config,
-            val_dataset, scheduler, callbacks
+            model, train_dataset,
+            training_config, val_dataset
         )
 
     def train_step(self,
@@ -83,25 +81,42 @@ class PiModelTrainer(BaseTrainer):
 
             # get squared error for all
             loss_se_labelled = pi_model_se(y_pred_batch_labelled_1, y_pred_batch_labelled_2)
-            loss_se_unlabelled = pi_model_se(y_pred_batch_unlabelled_1, y_pred_batch_unlabelled_2)
-
-            loss_se = loss_se_labelled + loss_se_unlabelled
-            not_nan_se = tf.dtypes.cast(
-                tf.math.logical_not(tf.math.is_nan(loss_se)),
+            not_nan_se_labelled = tf.dtypes.cast(
+                tf.math.logical_not(tf.math.is_nan(loss_se_labelled)),
                 dtype=tf.float32
             )
-            loss_se = tf.math.multiply_no_nan(
-                loss_se,
-                not_nan_se
+            loss_se_labelled = tf.math.multiply_no_nan(
+                loss_se_labelled,
+                not_nan_se_labelled
             )
+
+            loss_se_unlabelled = pi_model_se(y_pred_batch_unlabelled_1, y_pred_batch_unlabelled_2)
+            not_nan_se_unlabelled = tf.dtypes.cast(
+                tf.math.logical_not(tf.math.is_nan(loss_se_unlabelled)),
+                dtype=tf.float32
+            )
+            loss_se_unlabelled = tf.math.multiply_no_nan(
+                loss_se_unlabelled,
+                not_nan_se_unlabelled
+            )
+
+            # total loss
+            loss_se = loss_se_labelled + loss_se_unlabelled
 
             total_loss = loss_ce + (loss_weight * loss_se)
 
-        # if tf.math.is_nan(total_loss):
-        #     tf.print(x_batch_labelled_1, y_batch)
-        #     tf.print(loss_ce)
-        #     tf.print(loss_se_labelled)
-        #     tf.print(loss_se_unlabelled)
+        # iters = self._optimizer.iterations
+        # if iters % 250 == 0:
+        #     if not tf.math.is_nan(total_loss):
+        #         # tf.print(x_batch_labelled_1, y_batch)
+        #         tf.print(tf.strings.format("CE loss at iteration {}: {}", (iters, loss_ce)))
+        #         # tf.print(tf.strings.format("SE loss (labelled) at iteration {}: {}", (iters, loss_se_labelled)))
+        #         # tf.print(tf.strings.format("SE loss (unlabelled) at iteration {}: {}", (iters, loss_se_unlabelled)))
+        #         tf.print(tf.strings.format("SE loss at iteration {}: {}", (iters, loss_se)))
+        #         # tf.print(tf.strings.format("output vectors (unlabelled) 1: {}", (y_pred_batch_unlabelled_1)))
+        #         # tf.print(tf.strings.format("output vectors (unlabelled) 2: {}", (y_pred_batch_unlabelled_2)))
+        #     else:
+        #         tf.print(tf.strings.format("NaN loss at iteration: {}", (iters)))
 
         self._optimizer.minimize(
             total_loss,
@@ -124,11 +139,18 @@ class PiModelTrainer(BaseTrainer):
                 y_batch (tf.Tensor) - Batch of input label tensors.
             returns:
                 loss (tf.Tensor) - Loss for the batch.
+                matches (tf.Tensor) - Binary tensor indicating whether
+                    the prediction matches the true label.
         """
 
         y_pred_batch = self._model(x_batch, training = False)
         loss = categorical_cross_entropy(y_pred_batch, y_batch)
-        return loss
+
+        y_batch_label = tf.math.argmax(y_batch, axis = -1)
+        y_batch_predicted = tf.math.argmax(y_pred_batch, axis = -1)
+
+        matches = tf.cast(tf.equal(y_batch_label, y_batch_predicted), tf.float32)
+        return loss, matches
     
     def train(self) -> None:
         """
@@ -153,20 +175,18 @@ class PiModelTrainer(BaseTrainer):
             1.0,
             self._training_config.loss_ramp_up_epochs
         )
-        loss_weights = tf.exp(
+        loss_weights = self._training_config.unsup_loss_weight * tf.exp(
             tf.constant(-5, tf.float32) * tf.math.pow((tf.constant(1,tf.float32) - loss_t),2)
         )
 
-
         for epoch in tf.range(self._training_config.num_epochs, dtype = tf.int32):
-            train_loss = tf.constant(0, tf.float32)
-
             # pick loss weight
-            if epoch <= self._training_config.loss_ramp_up_epochs:
+            if epoch < self._training_config.loss_ramp_up_epochs:
                 loss_weight = loss_weights[epoch]
             else:
-                loss_weight = tf.constant(1, tf.float32)
+                loss_weight = tf.constant(self._training_config.unsup_loss_weight, tf.float32)
 
+            train_loss = tf.constant(0, tf.float32)
             for train_step_idx, (x_batch_labelled_1_train, x_batch_labelled_2_train, x_batch_unlabelled_1_train, x_batch_unlabelled_2_train, y_batch_train) in enumerate(self._train_dataset):
                 loss_train = self.train_step(
                     x_batch_labelled_1_train,
@@ -176,27 +196,28 @@ class PiModelTrainer(BaseTrainer):
                     y_batch_train,
                     loss_weight
                 )
+
                 train_loss += loss_train
             
-            train_loss /=  tf.cast(self._train_dataset.cardinality(), tf.float32)
+            train_loss /=  train_step_idx
 
             if self._val_dataset is not None:
-                val_loss = tf.constant(0, tf.float32)
 
+                matches_val = []
+                val_loss = tf.constant(0, tf.float32)
                 for val_step_idx, (x_batch_val, y_batch_val) in enumerate(self._val_dataset):
-                    loss_val = self.eval_step(x_batch_val, y_batch_val)
+                    loss_val, match_val = self.eval_step(x_batch_val, y_batch_val)
+
+                    matches_val.append(match_val.numpy())
                     val_loss += loss_val
                 
-                val_loss /= tf.cast(self._val_dataset.cardinality(), tf.float32)
+                val_loss /= val_step_idx
+                matches_val = np.concatenate(matches_val)
+                val_acc = 100 * (np.sum(matches_val) / len(matches_val))
                 
-                out_str = tf.strings.format(
-                    "Training loss at epoch {} is: {}. Validation loss is: {}",
-                    (epoch, train_loss, val_loss)
+                tf.print(
+                    f"Training loss at epoch {epoch} is : {train_loss:.2f}. Validation loss is : {val_loss:.2f}. Validation acc. is : {val_acc:.2f}."
                 )
-                tf.print(out_str)
+
             else:
-                out_str = tf.strings.format(
-                    "Training loss at epoch {} is: {}.",
-                    (epoch, train_loss)
-                )
-                tf.print(out_str)
+                tf.print(f"Training loss at epoch {epoch} is : {train_loss:.2f}.")
