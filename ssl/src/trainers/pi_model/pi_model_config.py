@@ -5,7 +5,7 @@ from ..base_trainer.base_trainer_config import BaseTrainerConfig
 
 class PiModelTrainerConfig(BaseTrainerConfig):
     """
-        Configuration class for the categorical Pi-Model trainer.
+        Configuration class for the Pi-Model trainer.
         As seen in the original paper: https://arxiv.org/abs/1610.02242
 
         params:
