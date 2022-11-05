@@ -104,13 +104,12 @@ class CategoricalCETrainer(BaseTrainer):
                 self._callbacks.on_epoch_begin(epoch)
 
             train_loss = tf.constant(0, dtype = tf.float32)
-            train_step_idx = tf.constant(0, dtype = tf.float32)
-
-            for x_batch_train, y_batch_train in self._train_dataset:
+            for train_step_idx, (x_batch_train, y_batch_train) in enumerate(self._train_dataset):
                 if self._callbacks is not None:
                     self._callbacks.on_train_batch_begin(train_step_idx)
 
                 loss_train = self.train_step(x_batch_train, y_batch_train)
+
                 train_loss += loss_train
 
                 if self._callbacks is not None:
@@ -118,21 +117,18 @@ class CategoricalCETrainer(BaseTrainer):
                     train_step_idx,
                     logs = {'loss': loss_train}
                     )
-
-                train_step_idx += 1
             
             train_loss /=  train_step_idx
 
             if self._val_dataset is not None:
+
                 matches_val = []
                 val_loss = tf.constant(0, dtype = tf.float32)
-                val_step_idx = tf.constant(0, dtype = tf.float32)
-
-                for x_batch_val, y_batch_val in self._val_dataset:
+                for val_step_idx, (x_batch_val, y_batch_val) in enumerate(self._val_dataset):
                     loss_val, match_val = self.eval_step(x_batch_val, y_batch_val)
+
                     matches_val.append(match_val.numpy())
                     val_loss += loss_val
-                    val_step_idx += 1
                 
                 val_loss /= val_step_idx
                 matches_val = np.concatenate(matches_val)

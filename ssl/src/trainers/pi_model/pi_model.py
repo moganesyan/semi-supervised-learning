@@ -180,17 +180,14 @@ class PiModelTrainer(BaseTrainer):
         )
 
         for epoch in tf.range(self._training_config.num_epochs, dtype = tf.int32):
-            train_loss = tf.constant(0, tf.float32)
-
             # pick loss weight
             if epoch < self._training_config.loss_ramp_up_epochs:
                 loss_weight = loss_weights[epoch]
             else:
                 loss_weight = tf.constant(self._training_config.unsup_loss_weight, tf.float32)
 
-            train_step_idx = tf.constant(0, dtype = tf.float32)
-
-            for x_batch_labelled_1_train, x_batch_labelled_2_train, x_batch_unlabelled_1_train, x_batch_unlabelled_2_train, y_batch_train in self._train_dataset:
+            train_loss = tf.constant(0, tf.float32)
+            for train_step_idx, (x_batch_labelled_1_train, x_batch_labelled_2_train, x_batch_unlabelled_1_train, x_batch_unlabelled_2_train, y_batch_train) in enumerate(self._train_dataset):
                 loss_train = self.train_step(
                     x_batch_labelled_1_train,
                     x_batch_labelled_2_train,
@@ -199,21 +196,20 @@ class PiModelTrainer(BaseTrainer):
                     y_batch_train,
                     loss_weight
                 )
+
                 train_loss += loss_train
-                train_step_idx += 1
             
             train_loss /=  train_step_idx
 
             if self._val_dataset is not None:
+
                 matches_val = []
                 val_loss = tf.constant(0, tf.float32)
-                val_step_idx = tf.constant(0, dtype = tf.float32)
-
-                for x_batch_val, y_batch_val in self._val_dataset:
+                for val_step_idx, (x_batch_val, y_batch_val) in enumerate(self._val_dataset):
                     loss_val, match_val = self.eval_step(x_batch_val, y_batch_val)
+
                     matches_val.append(match_val.numpy())
                     val_loss += loss_val
-                    val_step_idx += 1
                 
                 val_loss /= val_step_idx
                 matches_val = np.concatenate(matches_val)
