@@ -16,9 +16,10 @@ logger.addHandler(console)
 logger.setLevel(logging.INFO)
 
 
-class PiModelTrainer(BaseTrainer):
+class PseudoLabelTrainer(BaseTrainer):
     """
-        Pi-Model trainer.
+        Pseudo Label trainer.
+
         As seen in the original paper: https://www.researchgate.net/publication/280581078_Pseudo-Label_The_Simple_and_Efficient_Semi-Supervised_Learning_Method_for_Deep_Neural_Networks
     """
 
