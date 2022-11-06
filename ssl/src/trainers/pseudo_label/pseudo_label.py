@@ -44,8 +44,8 @@ class PiModelTrainer(BaseTrainer):
             1) Forward pass on the labelled features and calculate CCE loss.
             2) Run inference on the unlabelled features (unwatched) to calculate Pseudo Labels.
             3) Forward pass on the unlabelled features and calculate CCE loss using Pseudo Labels as targets.
-            2) Calculate total loss.
-            3) Apply optimizer on the model parameters (eg: weight update).
+            4) Calculate total loss.
+            5) Apply optimizer on the model parameters (eg: weight update).
 
             args:
                 x_batch_labelled (tf.Tensor) - Batch of labelled input feature tensors.
@@ -64,11 +64,11 @@ class PiModelTrainer(BaseTrainer):
 
             # create pseudo label on unlabelled batch
             with tape.stop_recording():
-                num_classes = tf.shape(y_batch_unlabelled)[1]
-                y_batch_unlabelled = self._model(x_batch_unlabelled, training = False)
-                y_batch_pseudolabels = tf.argmax(y_batch_unlabelled, 1)
-                y_batch_pseudolabels_onehot = tf.one_hot(
-                    y_batch_pseudolabels,
+                num_classes = tf.shape(y_batch)[1]
+                y_batch_pseudo = self._model(x_batch_unlabelled, training = False)
+                y_batch_pseudo = tf.argmax(y_batch_pseudo, 1)
+                y_batch_pseudo_onehot = tf.one_hot(
+                    y_batch_pseudo,
                     num_classes
                 )
 
@@ -84,7 +84,7 @@ class PiModelTrainer(BaseTrainer):
             )
 
             # get CE loss on the unlabelled batch using pseudolabels
-            loss_ce_pseudo = categorical_cross_entropy(y_pred_batch_unlabelled, y_batch_pseudolabels_onehot)
+            loss_ce_pseudo = categorical_cross_entropy(y_pred_batch_unlabelled, y_batch_pseudo_onehot)
             not_nan_ce_pseudo = tf.dtypes.cast(
                 tf.math.logical_not(tf.math.is_nan(loss_ce_pseudo)),
                 dtype=tf.float32
