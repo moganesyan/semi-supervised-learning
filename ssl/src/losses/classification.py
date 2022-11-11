@@ -43,8 +43,9 @@ def categorical_cross_entropy_masked(y_pred: tf.Tensor,
         y_test * tf.math.log(y_pred + _epsilon),
         axis = -1
     )
-    cce_maksed = cce * mask_num
+
+    cce_maksed = cce[..., tf.newaxis] * mask_num
 
     # calculate modified batchwise mean
     minibatch_size = tf.reduce_sum(mask_num)
-    return tf.reduce_sum(cce) / (minibatch_size + _epsilon)
+    return tf.reduce_sum(cce_maksed) / (minibatch_size + _epsilon)

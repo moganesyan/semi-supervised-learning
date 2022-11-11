@@ -89,6 +89,7 @@ class PiModelTrainer(BaseTrainer):
         #     if not tf.math.is_nan(total_loss):
         #         tf.print(tf.strings.format("CE loss at iteration {}: {}", (iters, loss_ce)))
         #         tf.print(tf.strings.format("SE loss at iteration {}: {}", (iters, loss_se)))
+        #         tf.print(tf.strings.format("Mask sum at iteration {}: {}", (iters, tf.reduce_sum(tf.cast(mask_batch, tf.float32)))))
         #     else:
         #         tf.print(tf.strings.format("NaN loss at iteration: {}", (iters)))
 
