@@ -109,25 +109,28 @@ class CategoricalCEDataLoader(BaseDataLoader):
             roll_jitter = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
 
             # apply random gaussian blur
-            if roll_blur <= blur_chance:
-                features_aug = apply_gaussian_blur(
-                    features_aug,
-                    **self._data_loader_config.blur_params
-                )
+            if blur_chance != 0:
+                if roll_blur <= blur_chance:
+                    features_aug = apply_gaussian_blur(
+                        features_aug,
+                        **self._data_loader_config.blur_params
+                    )
 
             # apply random crop and resize
-            if roll_crop <= crop_chance:
-                features_aug = apply_crop_and_resize(
-                    features_aug,
-                    **self._data_loader_config.crop_params
+            if crop_chance != 0:
+                if roll_crop <= crop_chance:
+                    features_aug = apply_crop_and_resize(
+                        features_aug,
+                        **self._data_loader_config.crop_params
                 )
 
             # apply random colour jitter / distortion
-            if roll_jitter <= jitter_chance:
-                features_aug = apply_colour_distortion(
-                    features_aug,
-                    **self._data_loader_config.jitter_params
-                )
+            if jitter_chance != 0:
+                if roll_jitter <= jitter_chance:
+                    features_aug = apply_colour_distortion(
+                        features_aug,
+                        **self._data_loader_config.jitter_params
+                    )
 
             return tf.squeeze(features_aug), label
 
