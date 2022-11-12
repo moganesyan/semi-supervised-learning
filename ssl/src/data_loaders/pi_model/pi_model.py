@@ -112,11 +112,11 @@ class PiModelDataLoader(BaseDataLoader):
         """
 
         blur_chance = (self._data_loader_config.blur_params['chance']
-            if self.self._data_loader_config.blur_params is not None else 0.0)
+            if self._data_loader_config.blur_params is not None else 0.0)
         crop_chance = (self._data_loader_config.crop_params['chance']
-            if self.self._data_loader_config.crop_params is not None else 0.0)
+            if self._data_loader_config.crop_params is not None else 0.0)
         jitter_chance = (self._data_loader_config.jitter_params['chance']
-            if self.self._data_loader_config.jitter_params is not None else 0.0)
+            if self._data_loader_config.jitter_params is not None else 0.0)
 
         def aug_func(features: tf.Tensor, label: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
             """
