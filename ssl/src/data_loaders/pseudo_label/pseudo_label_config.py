@@ -14,6 +14,6 @@ class PseudoLabelDataLoaderConfig(BaseDataLoaderConfig):
             shuffle_buffer_size (int): Buffer size for the dataset shuffle operator.
     """
 
-    num_classes: int = 10
-    batch_size: int = 32
-    shuffle_buffer_size: int = 1000
+    num_classes: int = None
+    batch_size: int = None
+    shuffle_buffer_size: int = None
