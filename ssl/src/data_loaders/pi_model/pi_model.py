@@ -46,16 +46,15 @@ class PiModelDataLoader(BaseDataLoader):
                 This function is meant to be applied elementwise.
 
                 args:
-                    features (tf.Tensor) - Features on which to apply preprocessing steps.
-                    label (tf.Tensor) - Label(s) for the sample instance.
+                    features (tf.Tensor) - Features.
+                    label (tf.Tensor) - Label(s).
                 return:
-                    features_proc (tf.Tensor) - Features after preprocessing steps have been applied.
-                    label_proc (tf.Tensor) - Labels(s) for the sample instance.
+                    features_proc (tf.Tensor) - Preprocessed features.
+                    label (tf.Tensor) - Labels(s).
             """
 
             features_proc = tf.cast(features, tf.float32) / 255.
-            label_proc = tf.cast(label, tf.int32)
-            return features_proc, label_proc
+            return features_proc, label
 
         return preproc_func
 
@@ -63,7 +62,7 @@ class PiModelDataLoader(BaseDataLoader):
         """
             Get function that applies inference preprocessing steps.
 
-            1) Scaling features values between 0 and 1.
+            1) Scale feature values between 0 and 1.
             2) Apply one-hot encoding on labelled samples.
 
             args:
@@ -81,11 +80,11 @@ class PiModelDataLoader(BaseDataLoader):
                 This function is meant to be applied elementwise.
 
                 args:
-                    features (tf.Tensor) - Features on which to apply preprocessing steps.
-                    label (tf.Tensor) - Label(s) for the sample instance.
+                    features (tf.Tensor) - Features.
+                    label (tf.Tensor) - Label(s).
                 return:
-                    features_proc (tf.Tensor) - Features after preprocessing steps have been applied.
-                    label (tf.Tensor) - One-hot encoded labels(s) for the sample instance.
+                    features_proc (tf.Tensor) - Preprocessed features.
+                    label_onehot (tf.Tensor) - One-hot encoded labels(s).
             """
 
             features_proc = tf.cast(features, tf.float32) / 255.
@@ -112,9 +111,12 @@ class PiModelDataLoader(BaseDataLoader):
                 aug_func (Callable) - Data augmentation function.
         """
 
-        blur_chance = self._data_loader_config.blur_params['chance']
-        crop_chance = self._data_loader_config.crop_params['chance']
-        jitter_chance = self._data_loader_config.jitter_params['chance']
+        blur_chance = (self._data_loader_config.blur_params['chance']
+            if self.self._data_loader_config.blur_params is not None else 0.0)
+        crop_chance = (self._data_loader_config.crop_params['chance']
+            if self.self._data_loader_config.crop_params is not None else 0.0)
+        jitter_chance = (self._data_loader_config.jitter_params['chance']
+            if self.self._data_loader_config.jitter_params is not None else 0.0)
 
         def aug_func(features: tf.Tensor, label: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
             """
@@ -123,11 +125,11 @@ class PiModelDataLoader(BaseDataLoader):
                 This function is meant to be applied elementwise.
 
                 args:
-                    features (tf.Tensor) - Features on which to apply random augmentations.
+                    features (tf.Tensor) - Features.
                     label (tf.Tensor) - Label(s).
                 return:
-                    features_aug_1 (tf.Tensor) - Features after random augmentations have been applied.
-                    features_aug_2 (tf.Tensor) - Features after random augmentations have been applied.
+                    features_aug_1 (tf.Tensor) - First realisation of augmented features.
+                    features_aug_2 (tf.Tensor) - Second realisation of augmented features.
                     label (tf.Tensor) - Labels(s).
             """
 
@@ -198,7 +200,7 @@ class PiModelDataLoader(BaseDataLoader):
         """
             Get custom batching function.
 
-            1) Split batch into labelled and unlabelled samples.
+            1) Mask unlabelled samples.
             2) Apply one-hot encoding on labelled samples.
 
             args:
