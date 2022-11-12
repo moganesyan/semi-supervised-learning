@@ -7,6 +7,7 @@ import tensorflow as tf
 from ..base_trainer.base_trainer import BaseTrainer
 from .pi_model_config import PiModelTrainerConfig
 
+from ...losses.classification import categorical_cross_entropy_masked
 from ...losses.classification import categorical_cross_entropy
 from ...losses.consistency import pi_model_se
 
@@ -35,86 +36,60 @@ class PiModelTrainer(BaseTrainer):
         )
 
     def train_step(self,
-                   x_batch_labelled_1: tf.Tensor,
-                   x_batch_labelled_2: tf.Tensor,
-                   x_batch_unlabelled_1: tf.Tensor,
-                   x_batch_unlabelled_2: tf.Tensor,
+                   x_batch_1: tf.Tensor,
+                   x_batch_2: tf.Tensor,
                    y_batch: tf.Tensor,
+                   mask_batch: tf.Tensor,
                    loss_weight: tf.Tensor) -> tf.Tensor:
         """
             Apply a single training step on the input batch.
 
-            1) Forward pass across all realisations of augmented features.
-            2) Calculate loss as a weighted sum of CCE and squared error loss.
-            3) Apply optimizer on the model parameters (eg: weight update).
+            1) Forward pass on all features (labelled and unlabelled).
+            2) Run inference on all features (labelled and unlabelled).
+            3) Calculate masked CCE for both labelled and unlabelled mini-batches
+                based on the `mask_batch` parameter.
+            4) Calculate total loss as a weighted sum of labelled and unlabelled components.
+            5) Apply optimizer on the model parameters (eg: weight update).
 
             args:
-                x_batch_labelled_1 (tf.Tensor) - First batch of augmented labelled input feature tensors.
-                x_batch_labelled_2 (tf.Tensor) - Second batch of augmented labelled input feature tensors.
-                x_batch_unlabelled_1 (tf.Tensor) - First batch of augmented unlabelled input feature tensors.
-                x_batch_unlabelled_2 (tf.Tensor) - Second batch of augmented unlabelled input feature tensors.
+                x_batch_1 (tf.Tensor) - Batch of input feature tensors containing labelled and
+                    and unlabelled samples. (1st realistation of augmentations)
+                x_batch_2 (tf.Tensor) - Batch of input feature tensors containing labelled and
+                    and unlabelled samples. (2nd realistation of augmentations)
+                y_batch (tf.Tensor) - Batch of input label tensors.
+                mask_batch (tf.Tensor) - Batch of flags indicating the labelled status of each sample.
                 loss_weight (tf.Tensor) - Weight coefficient to balance supervised and unsupervised loss
                     components.
-                y_batch (tf.Tensor) - Batch of input label tensors.
             returns:
                 total_loss (tf.Tensor) - Loss for the batch.
         """
 
         with tf.GradientTape() as tape:
             # forward pass calls
-            y_pred_batch_labelled_1 = self._model(x_batch_labelled_1)
-            y_pred_batch_labelled_2 = self._model(x_batch_labelled_2)
-
-            y_pred_batch_unlabelled_1 = self._model(x_batch_unlabelled_1)
-            y_pred_batch_unlabelled_2 = self._model(x_batch_unlabelled_2)
+            y_pred_batch_1 = self._model(x_batch_1)
+            y_pred_batch_2 = self._model(x_batch_2)
 
             # compute CE loss
-            loss_ce = categorical_cross_entropy(y_pred_batch_labelled_1, y_batch)
-            not_nan_ce = tf.dtypes.cast(
-                tf.math.logical_not(tf.math.is_nan(loss_ce)),
-                dtype=tf.float32
-            )
-            loss_ce = tf.math.multiply_no_nan(
-                loss_ce,
-                not_nan_ce
+            loss_ce = categorical_cross_entropy_masked(
+                y_pred_batch_1,
+                y_batch,
+                mask_batch
             )
 
             # get squared error for all
-            loss_se_labelled = pi_model_se(y_pred_batch_labelled_1, y_pred_batch_labelled_2)
-            not_nan_se_labelled = tf.dtypes.cast(
-                tf.math.logical_not(tf.math.is_nan(loss_se_labelled)),
-                dtype=tf.float32
+            loss_se = pi_model_se(
+                y_pred_batch_1,
+                y_pred_batch_2
             )
-            loss_se_labelled = tf.math.multiply_no_nan(
-                loss_se_labelled,
-                not_nan_se_labelled
-            )
-
-            loss_se_unlabelled = pi_model_se(y_pred_batch_unlabelled_1, y_pred_batch_unlabelled_2)
-            not_nan_se_unlabelled = tf.dtypes.cast(
-                tf.math.logical_not(tf.math.is_nan(loss_se_unlabelled)),
-                dtype=tf.float32
-            )
-            loss_se_unlabelled = tf.math.multiply_no_nan(
-                loss_se_unlabelled,
-                not_nan_se_unlabelled
-            )
-
-            # total loss
-            loss_se = loss_se_labelled + loss_se_unlabelled
 
             total_loss = loss_ce + (loss_weight * loss_se)
 
         # iters = self._optimizer.iterations
         # if iters % 250 == 0:
         #     if not tf.math.is_nan(total_loss):
-        #         # tf.print(x_batch_labelled_1, y_batch)
         #         tf.print(tf.strings.format("CE loss at iteration {}: {}", (iters, loss_ce)))
-        #         # tf.print(tf.strings.format("SE loss (labelled) at iteration {}: {}", (iters, loss_se_labelled)))
-        #         # tf.print(tf.strings.format("SE loss (unlabelled) at iteration {}: {}", (iters, loss_se_unlabelled)))
         #         tf.print(tf.strings.format("SE loss at iteration {}: {}", (iters, loss_se)))
-        #         # tf.print(tf.strings.format("output vectors (unlabelled) 1: {}", (y_pred_batch_unlabelled_1)))
-        #         # tf.print(tf.strings.format("output vectors (unlabelled) 2: {}", (y_pred_batch_unlabelled_2)))
+        #         tf.print(tf.strings.format("Mask sum at iteration {}: {}", (iters, tf.reduce_sum(tf.cast(mask_batch, tf.float32)))))
         #     else:
         #         tf.print(tf.strings.format("NaN loss at iteration: {}", (iters)))
 
@@ -187,13 +162,12 @@ class PiModelTrainer(BaseTrainer):
                 loss_weight = tf.constant(self._training_config.unsup_loss_weight, tf.float32)
 
             train_loss = tf.constant(0, tf.float32)
-            for train_step_idx, (x_batch_labelled_1_train, x_batch_labelled_2_train, x_batch_unlabelled_1_train, x_batch_unlabelled_2_train, y_batch_train) in enumerate(self._train_dataset):
+            for train_step_idx, (x_batch_1_train, x_batch_2_train, y_batch_train, mask_batch_train) in enumerate(self._train_dataset):
                 loss_train = self.train_step(
-                    x_batch_labelled_1_train,
-                    x_batch_labelled_2_train,
-                    x_batch_unlabelled_1_train,
-                    x_batch_unlabelled_2_train,
+                    x_batch_1_train,
+                    x_batch_2_train,
                     y_batch_train,
+                    mask_batch_train,
                     loss_weight
                 )
 

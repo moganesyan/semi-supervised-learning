@@ -7,6 +7,7 @@ import tensorflow as tf
 from ..base_trainer.base_trainer import BaseTrainer
 from .pseudo_label_config import PseudoLabelTrainerConfig
 
+from ...losses.classification import categorical_cross_entropy_masked
 from ...losses.classification import categorical_cross_entropy
 
 # set up logger
@@ -20,7 +21,7 @@ class PseudoLabelTrainer(BaseTrainer):
     """
         Pseudo Label trainer.
 
-        As seen in the original paper: https://www.researchgate.net/publication/280581078_Pseudo-Label_The_Simple_and_Efficient_Semi-Supervised_Learning_Method_for_Deep_Neural_Networks
+        As seen in the original paper: [Lee, Dong-Hyun., (2013)]
     """
 
     def __init__(
@@ -35,23 +36,25 @@ class PseudoLabelTrainer(BaseTrainer):
         )
 
     def train_step(self,
-                   x_batch_labelled: tf.Tensor,
-                   x_batch_unlabelled: tf.Tensor,
+                   x_batch: tf.Tensor,
                    y_batch: tf.Tensor,
+                   mask_batch: tf.Tensor,
                    loss_weight: tf.Tensor) -> tf.Tensor:
         """
             Apply a single training step on the input batch.
 
-            1) Forward pass on the labelled features and calculate CCE loss.
-            2) Run inference on the unlabelled features (unwatched) to calculate Pseudo Labels.
-            3) Forward pass on the unlabelled features and calculate CCE loss using Pseudo Labels as targets.
-            4) Calculate total loss.
+            1) Forward pass on all features (labelled and unlabelled).
+            2) Run inference on all features (labelled and unlabelled).
+            3) Calculate masked CCE for both labelled and unlabelled mini-batches
+                based on the `mask_batch` parameter.
+            4) Calculate total loss as a weighted sum of labelled and unlabelled components.
             5) Apply optimizer on the model parameters (eg: weight update).
 
             args:
-                x_batch_labelled (tf.Tensor) - Batch of labelled input feature tensors.
-                x_batch_unlabelled (tf.Tensor) - Batch of unlabelled input feature tensors.
+                x_batch(tf.Tensor) - Batch of input feature tensors containing labelled and
+                    and unlabelled samples.
                 y_batch (tf.Tensor) - Batch of input label tensors.
+                mask_batch (tf.Tensor) - Batch of flags indicating the labelled status of each sample.
                 loss_weight (tf.Tensor) - Weight coefficient to balance supervised and unsupervised loss
                     components.
             returns:
@@ -60,13 +63,12 @@ class PseudoLabelTrainer(BaseTrainer):
 
         with tf.GradientTape() as tape:
             # forward pass calls
-            y_pred_batch_labelled = self._model(x_batch_labelled)
-            y_pred_batch_unlabelled = self._model(x_batch_unlabelled)
+            y_pred_batch = self._model(x_batch)
 
-            # create pseudo label on unlabelled batch
+            # create pseudo labels
             with tape.stop_recording():
                 num_classes = tf.shape(y_batch)[1]
-                y_batch_pseudo = self._model(x_batch_unlabelled, training = False)
+                y_batch_pseudo = self._model(x_batch, training = False)
                 y_batch_pseudo = tf.argmax(y_batch_pseudo, 1)
                 y_batch_pseudo_onehot = tf.one_hot(
                     y_batch_pseudo,
@@ -74,25 +76,17 @@ class PseudoLabelTrainer(BaseTrainer):
                 )
 
             # compute CE loss on the labelled batch
-            loss_ce = categorical_cross_entropy(y_pred_batch_labelled, y_batch)
-            not_nan_ce = tf.dtypes.cast(
-                tf.math.logical_not(tf.math.is_nan(loss_ce)),
-                dtype=tf.float32
-            )
-            loss_ce = tf.math.multiply_no_nan(
-                loss_ce,
-                not_nan_ce
+            loss_ce = categorical_cross_entropy_masked(
+                y_pred_batch,
+                y_batch,
+                mask_batch
             )
 
             # get CE loss on the unlabelled batch using pseudolabels
-            loss_ce_pseudo = categorical_cross_entropy(y_pred_batch_unlabelled, y_batch_pseudo_onehot)
-            not_nan_ce_pseudo = tf.dtypes.cast(
-                tf.math.logical_not(tf.math.is_nan(loss_ce_pseudo)),
-                dtype=tf.float32
-            )
-            loss_ce_pseudo = tf.math.multiply_no_nan(
-                loss_ce_pseudo,
-                not_nan_ce_pseudo
+            loss_ce_pseudo = categorical_cross_entropy_masked(
+                y_pred_batch,
+                y_batch_pseudo_onehot,
+                tf.math.logical_not(mask_batch)
             )
 
             # total loss
@@ -182,11 +176,11 @@ class PseudoLabelTrainer(BaseTrainer):
             loss_weight = self._get_loss_weight(epoch)
 
             train_loss = tf.constant(0, tf.float32)
-            for train_step_idx, (x_batch_labelled_train, x_batch_unlabelled_train, y_batch_train) in enumerate(self._train_dataset):
+            for train_step_idx, (x_batch_train, y_batch_train, mask_batch_train) in enumerate(self._train_dataset):
                 loss_train = self.train_step(
-                    x_batch_labelled_train,
-                    x_batch_unlabelled_train,
+                    x_batch_train,
                     y_batch_train,
+                    mask_batch_train,
                     loss_weight
                 )
 

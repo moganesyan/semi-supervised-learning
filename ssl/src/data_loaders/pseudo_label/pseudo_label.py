@@ -46,11 +46,12 @@ class PseudoLabelDataLoader(BaseDataLoader):
                     label (tf.Tensor) - Label(s) for the sample instance.
                 return:
                     features_proc (tf.Tensor) - Features after preprocessing steps have been applied.
-                    label (tf.Tensor) - Labels(s) for the sample instance.
+                    label_proc (tf.Tensor) - Labels(s) for the sample instance.
             """
 
             features_proc = tf.cast(features, tf.float32) / 255.
-            return features_proc, label
+            label_proc = tf.cast(label, tf.int32)
+            return features_proc, label_proc
 
         return preproc_func
 
@@ -110,7 +111,7 @@ class PseudoLabelDataLoader(BaseDataLoader):
             """
                 Apply custom batching logic.
 
-                Batch is split into labelled and unlabelled minibatches.
+                Batch consists of labelled and unlabelled minibatches.
                 Unlabelled instances are identified by a class label of -1.
 
                 This function is meant to be applied batchwise.
@@ -119,24 +120,21 @@ class PseudoLabelDataLoader(BaseDataLoader):
                     features_batch (tf.Tensor) - Batch of input features.
                     labels_batch (tf.Tensor) - Batch of class labels.
                 return:
-                    features_batch_labelled (tf.Tensor) - Batch of labelled features.
-                    features_batch_unlabelled (tf.Tensor) - Batch of unlabelled features.
+                    features_batch (tf.Tensor) - Batch of labelled features.
                     label_batch_onehot (tf.Tensor) - Batch of one-hot encoded class labels.
+                    mask_batch (tf.Tensor) - Batch of flags indicating labelled samples.
             """
 
-            # idx for unlabelled data
-            idx_labelled = tf.where(tf.not_equal(labels_batch, -1))[:,0]
-            idx_unlabelled = tf.where(tf.equal(labels_batch, -1))[:,0]
+            # get mask batch
+            mask_batch = tf.not_equal(labels_batch, -1)
 
-            # split batch
-            features_batch_labelled = tf.gather(features_batch, indices = idx_labelled, axis = 0)
-            features_batch_unlabelled = tf.gather(features_batch, indices = idx_unlabelled, axis = 0)
-            labels_batch_labelled = tf.gather(labels_batch, indices = idx_labelled, axis = 0)
+            # change the placeholder -1 labels to 0 (a valid class label)
+            labels_batch = labels_batch * tf.cast(mask_batch, tf.int32)
 
             # encode labels
-            label_batch_onehot = tf.squeeze(tf.one_hot(labels_batch_labelled, num_classes))
+            label_batch_onehot = tf.squeeze(tf.one_hot(labels_batch, num_classes))
 
-            return features_batch_labelled, features_batch_unlabelled, label_batch_onehot
+            return features_batch, label_batch_onehot, mask_batch
 
         return batch_func
 
