@@ -16,7 +16,8 @@ class CategoricalCEDataLoader(BaseDataLoader):
 
         args:
             data_in (tf.data.Dataset): Labelled dataset.
-            data_loader_config (CategoricalCEDataLoaderConfig): Configuration class for the data loader.
+            data_loader_config (CategoricalCEDataLoaderConfig):
+                Configuration class for the data loader.
         returns:
             None
     """
@@ -49,11 +50,11 @@ class CategoricalCEDataLoader(BaseDataLoader):
                 This function is meant to be applied elementwise.
 
                 args:
-                    features (tf.Tensor) - Features on which to apply preprocessing steps.
-                    label (tf.Tensor) - Label(s) for the sample instance.
+                    features (tf.Tensor) - Features.
+                    label (tf.Tensor) - Label(s).
                 return:
-                    features_proc (tf.Tensor) - Features after preprocessing steps have been applied.
-                    label_onehot (tf.Tensor) - One-hot encoded labels(s) for the sample instance.
+                    features_proc (tf.Tensor) - Preprocessed features.
+                    label_onehot (tf.Tensor) - One-hot encoded labels(s).
             """
 
             features_proc = tf.cast(features, tf.float32) / 255.
@@ -80,9 +81,12 @@ class CategoricalCEDataLoader(BaseDataLoader):
                 aug_func (Callable) - Data augmentation function.
         """
 
-        blur_chance = self._data_loader_config.blur_params['chance']
-        crop_chance = self._data_loader_config.crop_params['chance']
-        jitter_chance = self._data_loader_config.jitter_params['chance']
+        blur_chance = (self._data_loader_config.blur_params['chance']
+            if self.self._data_loader_config.blur_params is not None else 0.0)
+        crop_chance = (self._data_loader_config.crop_params['chance']
+            if self.self._data_loader_config.crop_params is not None else 0.0)
+        jitter_chance = (self._data_loader_config.jitter_params['chance']
+            if self.self._data_loader_config.jitter_params is not None else 0.0)
 
         def aug_func(features: tf.Tensor, label: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
             """
@@ -91,10 +95,10 @@ class CategoricalCEDataLoader(BaseDataLoader):
                 This function is meant to be applied elementwise.
 
                 args:
-                    features (tf.Tensor) - Features on which to apply random augmentations.
+                    features (tf.Tensor) - Features.
                     label (tf.Tensor) - Label(s).
                 return:
-                    features_aug (tf.Tensor) - Features after random augmentations have been applied.
+                    features_aug (tf.Tensor) - Augmented features.
                     label (tf.Tensor) - Labels(s).
             """
 
