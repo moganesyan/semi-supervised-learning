@@ -68,8 +68,8 @@ def apply_crop_and_resize(x_in: tf.Tensor,
         w_new = tf.math.floor(tf.math.sqrt(aspect_ratio * num_pixels_new))
         h_new = tf.math.floor(num_pixels_new / w_new)
 
-        h_new = tf.cast(h_new, tf.int32)
-        w_new = tf.cast(w_new, tf.int32)
+        h_new = tf.cast(h_new, tf.int64)
+        w_new = tf.cast(w_new, tf.int64)
 
         if w_new <= w_original and h_new <= h_original:
             crop_dims = tf.stack(

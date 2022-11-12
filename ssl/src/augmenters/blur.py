@@ -14,7 +14,7 @@ def get_gaussian_kernel(k: int, sigma: float) -> tf.Tensor:
             kernel_gauss (tf.Tensor): Gaussian kernel tensor.
     """
 
-    x = tf.range(-k // 2 + 1, k // 2 + 1, dtype = tf.float32)
+    x = tf.range(-k // 2 + 1, k // 2 + 1, dtype = tf.float64)
 
     x_gauss = tf.math.exp(-(tf.pow(x, 2.0) / (2.0 * tf.pow(sigma, 2.0))))
     x_gauss = x_gauss / tf.math.sqrt((2.0 * 3.14159 * tf.pow(sigma, 2.0)))
@@ -49,8 +49,8 @@ def apply_gaussian_blur(x_in: tf.Tensor,
 
     blur_strength = tf.random.uniform(
         (), blur_strength_min, blur_strength_max)
-    kernel_size = tf.cast(x_in.shape[1], tf.float32) * tf.constant(kernel_ratio)
-    kernel_size = tf.cast(kernel_size, tf.int32)
+    kernel_size = tf.cast(x_in.shape[1], tf.float64) * tf.constant(kernel_ratio)
+    kernel_size = tf.cast(kernel_size, tf.int64)
 
     kernel = get_gaussian_kernel(kernel_size, blur_strength)
     kernel = kernel[..., tf.newaxis]
