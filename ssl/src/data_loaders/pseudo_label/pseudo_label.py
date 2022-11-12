@@ -49,7 +49,7 @@ class PseudoLabelDataLoader(BaseDataLoader):
                     label (tf.Tensor) - Labels(s).
             """
 
-            features_proc = tf.cast(features, tf.float32) / 255.
+            features_proc = tf.cast(features, tf.float64) / 255.
             return features_proc, label
 
         return preproc_func
@@ -83,7 +83,7 @@ class PseudoLabelDataLoader(BaseDataLoader):
                     label (tf.Tensor) - One-hot encoded labels(s).
             """
 
-            features_proc = tf.cast(features, tf.float32) / 255.
+            features_proc = tf.cast(features, tf.float64) / 255.
             label_onehot = tf.squeeze(tf.one_hot(label, num_classes))
 
             return features_proc, label_onehot
@@ -128,7 +128,7 @@ class PseudoLabelDataLoader(BaseDataLoader):
             mask_batch = tf.not_equal(labels_batch, -1)
 
             # change the placeholder -1 labels to 0 (a valid class label)
-            labels_batch = labels_batch * tf.cast(mask_batch, tf.int32)
+            labels_batch = labels_batch * tf.cast(mask_batch, tf.int64)
 
             # encode labels
             label_batch_onehot = tf.squeeze(tf.one_hot(labels_batch, num_classes))

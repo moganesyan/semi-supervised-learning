@@ -53,7 +53,7 @@ class PiModelDataLoader(BaseDataLoader):
                     label (tf.Tensor) - Labels(s).
             """
 
-            features_proc = tf.cast(features, tf.float32) / 255.
+            features_proc = tf.cast(features, tf.float64) / 255.
             return features_proc, label
 
         return preproc_func
@@ -87,7 +87,7 @@ class PiModelDataLoader(BaseDataLoader):
                     label_onehot (tf.Tensor) - One-hot encoded labels(s).
             """
 
-            features_proc = tf.cast(features, tf.float32) / 255.
+            features_proc = tf.cast(features, tf.float64) / 255.
             label_onehot = tf.squeeze(tf.one_hot(label, num_classes))
 
             return features_proc, label_onehot
@@ -137,14 +137,14 @@ class PiModelDataLoader(BaseDataLoader):
             features_aug_2 = features[tf.newaxis, ...]
 
             # roll 1
-            roll_blur_1 = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
-            roll_crop_1 = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
-            roll_jitter_1 = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
+            roll_blur_1 = tf.random.uniform((), 0, 1.0, dtype = tf.float64)
+            roll_crop_1 = tf.random.uniform((), 0, 1.0, dtype = tf.float64)
+            roll_jitter_1 = tf.random.uniform((), 0, 1.0, dtype = tf.float64)
 
             # roll 2
-            roll_blur_2 = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
-            roll_crop_2 = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
-            roll_jitter_2 = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
+            roll_blur_2 = tf.random.uniform((), 0, 1.0, dtype = tf.float64)
+            roll_crop_2 = tf.random.uniform((), 0, 1.0, dtype = tf.float64)
+            roll_jitter_2 = tf.random.uniform((), 0, 1.0, dtype = tf.float64)
 
             # apply the first realisation of random augmentations
 
@@ -236,7 +236,7 @@ class PiModelDataLoader(BaseDataLoader):
             mask_batch = tf.not_equal(labels_batch, -1)
 
             # change the placeholder -1 labels to 0 (a valid class label)
-            labels_batch = labels_batch * tf.cast(mask_batch, tf.int32)
+            labels_batch = labels_batch * tf.cast(mask_batch, tf.int64)
 
             # encode labels
             label_batch_onehot = tf.squeeze(tf.one_hot(labels_batch, num_classes))

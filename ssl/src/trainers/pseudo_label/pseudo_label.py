@@ -130,7 +130,7 @@ class PseudoLabelTrainer(BaseTrainer):
         y_batch_label = tf.math.argmax(y_batch, axis = -1)
         y_batch_predicted = tf.math.argmax(y_pred_batch, axis = -1)
 
-        matches = tf.cast(tf.equal(y_batch_label, y_batch_predicted), tf.float32)
+        matches = tf.cast(tf.equal(y_batch_label, y_batch_predicted), tf.float64)
         return loss, matches
     
     def _get_loss_weight(self, epoch: int) -> float:
@@ -144,13 +144,13 @@ class PseudoLabelTrainer(BaseTrainer):
         """
 
         if epoch < self._training_config.t1:
-            loss_weight = tf.constant(0, tf.float32)
+            loss_weight = tf.constant(0, tf.float64)
         elif epoch >= self._training_config.t1 and epoch < self._training_config.t2:
-            numer = tf.cast(epoch, tf.float32) - self._training_config.t1
+            numer = tf.cast(epoch, tf.float64) - self._training_config.t1
             denom = self._training_config.t2 - self._training_config.t1
             loss_weight = self._training_config.alpha * (numer / denom)
         else:
-            loss_weight = tf.constant(self._training_config.alpha, tf.float32)
+            loss_weight = tf.constant(self._training_config.alpha, tf.float64)
 
         return loss_weight
 
@@ -171,11 +171,11 @@ class PseudoLabelTrainer(BaseTrainer):
                 None
         """
 
-        for epoch in tf.range(self._training_config.num_epochs, dtype = tf.int32):
+        for epoch in tf.range(self._training_config.num_epochs, dtype = tf.int64):
             # get loss weight
             loss_weight = self._get_loss_weight(epoch)
 
-            train_loss = tf.constant(0, tf.float32)
+            train_loss = tf.constant(0, tf.float64)
             for train_step_idx, (x_batch_train, y_batch_train, mask_batch_train) in enumerate(self._train_dataset):
                 loss_train = self.train_step(
                     x_batch_train,
@@ -191,7 +191,7 @@ class PseudoLabelTrainer(BaseTrainer):
             if self._val_dataset is not None:
 
                 matches_val = []
-                val_loss = tf.constant(0, tf.float32)
+                val_loss = tf.constant(0, tf.float64)
                 for val_step_idx, (x_batch_val, y_batch_val) in enumerate(self._val_dataset):
                     loss_val, match_val = self.eval_step(x_batch_val, y_batch_val)
 

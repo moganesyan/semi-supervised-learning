@@ -19,7 +19,7 @@ def pi_model_se(y_pred_1: tf.Tensor,
     """
 
     _epsilon = tf.constant(1e-16)
-    num_classes = tf.cast(tf.shape(y_pred_2)[1], dtype = tf.float32)
+    num_classes = tf.cast(tf.shape(y_pred_2)[1], dtype = tf.float64)
 
     mse = tf.reduce_sum(
         tf.math.pow(y_pred_1 - y_pred_2, 2),
