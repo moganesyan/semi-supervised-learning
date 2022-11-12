@@ -57,7 +57,7 @@ class CategoricalCEDataLoader(BaseDataLoader):
                     label_onehot (tf.Tensor) - One-hot encoded labels(s).
             """
 
-            features_proc = tf.cast(features, tf.float64) / 255.
+            features_proc = tf.cast(features, tf.float32) / 255.
             label_onehot = tf.squeeze(tf.one_hot(label, num_classes))
 
             return features_proc, label_onehot
@@ -104,9 +104,9 @@ class CategoricalCEDataLoader(BaseDataLoader):
 
             features_aug = features[tf.newaxis, ...]
 
-            roll_blur = tf.random.uniform((), 0, 1.0, dtype = tf.float64)
-            roll_crop = tf.random.uniform((), 0, 1.0, dtype = tf.float64)
-            roll_jitter = tf.random.uniform((), 0, 1.0, dtype = tf.float64)
+            roll_blur = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
+            roll_crop = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
+            roll_jitter = tf.random.uniform((), 0, 1.0, dtype = tf.float32)
 
             # apply random gaussian blur
             if blur_chance != 0:

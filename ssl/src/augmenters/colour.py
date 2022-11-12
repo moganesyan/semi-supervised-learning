@@ -70,7 +70,7 @@ def apply_colour_distortion(x_in: tf.Tensor,
     """
 
     apply_drop = tf.random.uniform(
-        (), minval = 0, maxval = 1.0, dtype = tf.float64
+        (), minval = 0, maxval = 1.0, dtype = tf.float32
     )
 
     # apply colour jitter

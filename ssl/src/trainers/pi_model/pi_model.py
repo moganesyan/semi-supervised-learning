@@ -89,7 +89,7 @@ class PiModelTrainer(BaseTrainer):
         #     if not tf.math.is_nan(total_loss):
         #         tf.print(tf.strings.format("CE loss at iteration {}: {}", (iters, loss_ce)))
         #         tf.print(tf.strings.format("SE loss at iteration {}: {}", (iters, loss_se)))
-        #         tf.print(tf.strings.format("Mask sum at iteration {}: {}", (iters, tf.reduce_sum(tf.cast(mask_batch, tf.float64)))))
+        #         tf.print(tf.strings.format("Mask sum at iteration {}: {}", (iters, tf.reduce_sum(tf.cast(mask_batch, tf.float32)))))
         #     else:
         #         tf.print(tf.strings.format("NaN loss at iteration: {}", (iters)))
 
@@ -124,7 +124,7 @@ class PiModelTrainer(BaseTrainer):
         y_batch_label = tf.math.argmax(y_batch, axis = -1)
         y_batch_predicted = tf.math.argmax(y_pred_batch, axis = -1)
 
-        matches = tf.cast(tf.equal(y_batch_label, y_batch_predicted), tf.float64)
+        matches = tf.cast(tf.equal(y_batch_label, y_batch_predicted), tf.float32)
         return loss, matches
     
     def train(self) -> None:
@@ -151,7 +151,7 @@ class PiModelTrainer(BaseTrainer):
             self._training_config.loss_ramp_up_epochs
         )
         loss_weights = self._training_config.unsup_loss_weight * tf.exp(
-            tf.constant(-5, tf.float64) * tf.math.pow((tf.constant(1,tf.float64) - loss_t),2)
+            tf.constant(-5, tf.float32) * tf.math.pow((tf.constant(1,tf.float32) - loss_t),2)
         )
 
         for epoch in tf.range(self._training_config.num_epochs, dtype = tf.int64):
@@ -159,9 +159,9 @@ class PiModelTrainer(BaseTrainer):
             if epoch < self._training_config.loss_ramp_up_epochs:
                 loss_weight = loss_weights[epoch]
             else:
-                loss_weight = tf.constant(self._training_config.unsup_loss_weight, tf.float64)
+                loss_weight = tf.constant(self._training_config.unsup_loss_weight, tf.float32)
 
-            train_loss = tf.constant(0, tf.float64)
+            train_loss = tf.constant(0, tf.float32)
             for train_step_idx, (x_batch_1_train, x_batch_2_train, y_batch_train, mask_batch_train) in enumerate(self._train_dataset):
                 loss_train = self.train_step(
                     x_batch_1_train,
@@ -178,7 +178,7 @@ class PiModelTrainer(BaseTrainer):
             if self._val_dataset is not None:
 
                 matches_val = []
-                val_loss = tf.constant(0, tf.float64)
+                val_loss = tf.constant(0, tf.float32)
                 for val_step_idx, (x_batch_val, y_batch_val) in enumerate(self._val_dataset):
                     loss_val, match_val = self.eval_step(x_batch_val, y_batch_val)
 

@@ -76,7 +76,7 @@ class CategoricalCETrainer(BaseTrainer):
         y_batch_label = tf.math.argmax(y_batch, axis = -1)
         y_batch_predicted = tf.math.argmax(y_pred_batch, axis = -1)
 
-        matches = tf.cast(tf.equal(y_batch_label, y_batch_predicted), tf.float64)
+        matches = tf.cast(tf.equal(y_batch_label, y_batch_predicted), tf.float32)
         return loss, matches
     
     def train(self) -> None:
@@ -103,7 +103,7 @@ class CategoricalCETrainer(BaseTrainer):
             if self._callbacks is not None:
                 self._callbacks.on_epoch_begin(epoch)
 
-            train_loss = tf.constant(0, dtype = tf.float64)
+            train_loss = tf.constant(0, dtype = tf.float32)
             for train_step_idx, (x_batch_train, y_batch_train) in enumerate(self._train_dataset):
                 if self._callbacks is not None:
                     self._callbacks.on_train_batch_begin(train_step_idx)
@@ -123,7 +123,7 @@ class CategoricalCETrainer(BaseTrainer):
             if self._val_dataset is not None:
 
                 matches_val = []
-                val_loss = tf.constant(0, dtype = tf.float64)
+                val_loss = tf.constant(0, dtype = tf.float32)
                 for val_step_idx, (x_batch_val, y_batch_val) in enumerate(self._val_dataset):
                     loss_val, match_val = self.eval_step(x_batch_val, y_batch_val)
 

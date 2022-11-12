@@ -36,7 +36,7 @@ def categorical_cross_entropy_masked(y_pred: tf.Tensor,
             loss (tf.Tensor): Categorical CE loss.
     """
 
-    mask_num = tf.cast(mask, tf.float64)
+    mask_num = tf.cast(mask, tf.float32)
     _epsilon = tf.constant(1e-16)
 
     cce = -1 * tf.reduce_sum(
