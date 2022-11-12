@@ -27,7 +27,7 @@ class PseudoLabelDataLoader(BaseDataLoader):
         """
             Get function that applies training preprocessing steps.
 
-            1) Scaling features values between 0 and 1.
+            1) Scale feature values between 0 and 1.
 
             args:
                 None
@@ -42,16 +42,15 @@ class PseudoLabelDataLoader(BaseDataLoader):
                 This function is meant to be applied elementwise.
 
                 args:
-                    features (tf.Tensor) - Features on which to apply preprocessing steps.
-                    label (tf.Tensor) - Label(s) for the sample instance.
+                    features (tf.Tensor) - Features.
+                    label (tf.Tensor) - Label(s).
                 return:
-                    features_proc (tf.Tensor) - Features after preprocessing steps have been applied.
-                    label_proc (tf.Tensor) - Labels(s) for the sample instance.
+                    features_proc (tf.Tensor) - Preprocessed features.
+                    label (tf.Tensor) - Labels(s).
             """
 
             features_proc = tf.cast(features, tf.float32) / 255.
-            label_proc = tf.cast(label, tf.int32)
-            return features_proc, label_proc
+            return features_proc, label
 
         return preproc_func
 
@@ -59,7 +58,7 @@ class PseudoLabelDataLoader(BaseDataLoader):
         """
             Get function that applies inference preprocessing steps.
 
-            1) Scaling features values between 0 and 1.
+            1) Scale features values between 0 and 1.
             2) Apply one-hot encoding on labelled samples.
 
             args:
@@ -77,11 +76,11 @@ class PseudoLabelDataLoader(BaseDataLoader):
                 This function is meant to be applied elementwise.
 
                 args:
-                    features (tf.Tensor) - Features on which to apply preprocessing steps.
-                    label (tf.Tensor) - Label(s) for the sample instance.
+                    features (tf.Tensor) - Features.
+                    label (tf.Tensor) - Label(s).
                 return:
-                    features_proc (tf.Tensor) - Features after preprocessing steps have been applied.
-                    label (tf.Tensor) - One-hot encoded labels(s) for the sample instance.
+                    features_proc (tf.Tensor) - Preprocessed features.
+                    label (tf.Tensor) - One-hot encoded labels(s).
             """
 
             features_proc = tf.cast(features, tf.float32) / 255.
@@ -95,7 +94,7 @@ class PseudoLabelDataLoader(BaseDataLoader):
         """
             Get custom batching function.
 
-            1) Split batch into labelled and unlabelled samples.
+            1) Mask unlabelled samples.
             2) Apply one-hot encoding on labelled samples.
 
             args:
