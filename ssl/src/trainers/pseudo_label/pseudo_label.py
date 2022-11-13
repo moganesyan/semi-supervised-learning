@@ -4,8 +4,10 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import tensorflow as tf
 
-from ..base_trainer.base_trainer import BaseTrainer
 from .pseudo_label_config import PseudoLabelTrainerConfig
+from ..base_trainer.base_trainer import BaseTrainer
+
+from ...models.base_model.base_model import BaseModel
 
 from ...losses.classification import categorical_cross_entropy_masked
 from ...losses.classification import categorical_cross_entropy
@@ -22,18 +24,26 @@ class PseudoLabelTrainer(BaseTrainer):
         Pseudo Label trainer.
 
         As seen in the original paper: [Lee, Dong-Hyun., (2013)]
+
+        args:
+            model (BaseModel) - Keras model object.
+        returns:
+            None
     """
 
     def __init__(
         self,
-        model,
+        model: BaseModel,
         train_dataset: tf.data.Dataset,
         training_config: PseudoLabelTrainerConfig,
         val_dataset: Optional[tf.data.Dataset] = None) -> None:
+
         super().__init__(
-            model, train_dataset,
-            training_config, val_dataset
+            train_dataset,
+            training_config,
+            val_dataset
         )
+        self._model = model
 
     def train_step(self,
                    x_batch: tf.Tensor,

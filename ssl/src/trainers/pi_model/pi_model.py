@@ -4,8 +4,10 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import tensorflow as tf
 
-from ..base_trainer.base_trainer import BaseTrainer
 from .pi_model_config import PiModelTrainerConfig
+from ..base_trainer.base_trainer import BaseTrainer
+
+from ...models.base_model.base_model import BaseModel
 
 from ...losses.classification import categorical_cross_entropy_masked
 from ...losses.classification import categorical_cross_entropy
@@ -22,18 +24,26 @@ class PiModelTrainer(BaseTrainer):
     """
         Pi-Model trainer.
         As seen in the original paper: https://arxiv.org/abs/1610.02242
+
+        args:
+            model (BaseModel) - Keras model object.
+        returns:
+            None
     """
 
     def __init__(
         self,
-        model,
+        model: BaseModel,
         train_dataset: tf.data.Dataset,
         training_config: PiModelTrainerConfig,
         val_dataset: Optional[tf.data.Dataset] = None) -> None:
+
         super().__init__(
-            model, train_dataset,
-            training_config, val_dataset
+            train_dataset,
+            training_config,
+            val_dataset
         )
+        self._model = model
 
     def train_step(self,
                    x_batch_1: tf.Tensor,
@@ -45,11 +55,10 @@ class PiModelTrainer(BaseTrainer):
             Apply a single training step on the input batch.
 
             1) Forward pass on all features (labelled and unlabelled).
-            2) Run inference on all features (labelled and unlabelled).
-            3) Calculate masked CCE for both labelled and unlabelled mini-batches
-                based on the `mask_batch` parameter.
-            4) Calculate total loss as a weighted sum of labelled and unlabelled components.
-            5) Apply optimizer on the model parameters (eg: weight update).
+            2) Calculate masked CCE for labelled samples. only and
+                calculate consistency loss for all samples.
+            3) Calculate total loss as a weighted sum of labelled and unlabelled components.
+            4) Apply optimizer on the model parameters (eg: weight update).
 
             args:
                 x_batch_1 (tf.Tensor) - Batch of input feature tensors containing labelled and
