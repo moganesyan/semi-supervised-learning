@@ -22,7 +22,6 @@ class BaseTrainer(ABC):
         Base class for model training.
 
         args:
-            model (BaseModel): Model to train.
             train_dataset (tf.data.Dataset): Training dataset.
             training_config (BaseTrainerConfig): Training config.
             val_dataset (tf.data.Dataset): Validation dataset.
@@ -30,12 +29,10 @@ class BaseTrainer(ABC):
 
     def __init__(
         self,
-        model,
         train_dataset: tf.data.Dataset,
         training_config: BaseTrainerConfig,
         val_dataset: Optional[tf.data.Dataset] = None) -> None:
 
-        self._model = model
         self._train_dataset = train_dataset
         self._training_config = training_config
         self._val_dataset = val_dataset

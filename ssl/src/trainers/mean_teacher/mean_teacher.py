@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import tensorflow as tf
 
-from .pi_model_config import PiModelTrainerConfig
+from .mean_teacher_config import MeanTeacherTrainerConfig
 from ..base_trainer.base_trainer import BaseTrainer
 
 from ...models.base_model.base_model import BaseModel
@@ -20,22 +20,18 @@ logger.addHandler(console)
 logger.setLevel(logging.INFO)
 
 
-class PiModelTrainer(BaseTrainer):
+class MeanTeacherTrainer(BaseTrainer):
     """
-        Pi-Model trainer.
-        As seen in the original paper: https://arxiv.org/abs/1610.02242
-
-        args:
-            model (BaseModel) - Keras model object.
-        returns:
-            None
+        Mean Teacher trainer.
+        As seen in the original paper: https://arxiv.org/abs/1703.01780
     """
 
     def __init__(
         self,
-        model: BaseModel,
+        student_model: BaseModel,
+        teacher_model: BaseModel,
         train_dataset: tf.data.Dataset,
-        training_config: PiModelTrainerConfig,
+        training_config: MeanTeacherTrainerConfig,
         val_dataset: Optional[tf.data.Dataset] = None) -> None:
 
         super().__init__(
@@ -43,7 +39,31 @@ class PiModelTrainer(BaseTrainer):
             training_config,
             val_dataset
         )
-        self._model = model
+        self._student_model = student_model
+        self._teacher_model = teacher_model
+
+    def _update_teacher_weights(self):
+        """
+            Update the teacher model weights as the exponential
+                moving average (EMA) of student model weights.
+            
+            args:
+                None
+            returns:
+                None
+        """
+
+        student_weights = self._student_model.get_weights()
+        teacher_weights = self._teacher_model.get_weights()
+
+        teacher_weights_new = []
+
+        for (student_weight, teacher_weight) in zip(student_weights, teacher_weights):
+            new_teacher_weight = ((self._training_config.alpha * teacher_weight)
+                + ((1 - self._training_config.alpha) * student_weight))
+            teacher_weights_new.append(new_teacher_weight)
+        
+        self._teacher_model.set_weights(teacher_weights_new)
 
     def train_step(self,
                    x_batch_1: tf.Tensor,
@@ -55,10 +75,14 @@ class PiModelTrainer(BaseTrainer):
             Apply a single training step on the input batch.
 
             1) Forward pass on all features (labelled and unlabelled).
+                Student model assigned the first realisation of augmented features.
+                Teacher model assigned the second realisation of augmented features.
             2) Calculate masked CCE for labelled samples. only and
                 calculate consistency loss for all samples.
             3) Calculate total loss as a weighted sum of labelled and unlabelled components.
             4) Apply optimizer on the model parameters (eg: weight update).
+            5) Update teacher weights using exponential moving average (EMA)
+                of student's weights.
 
             args:
                 x_batch_1 (tf.Tensor) - Batch of input feature tensors containing labelled and
@@ -75,8 +99,10 @@ class PiModelTrainer(BaseTrainer):
 
         with tf.GradientTape() as tape:
             # forward pass calls
-            y_pred_batch_1 = self._model(x_batch_1)
-            y_pred_batch_2 = self._model(x_batch_2)
+            y_pred_batch_1 = self._student_model(x_batch_1)
+
+            with tape.stop_recording():
+                y_pred_batch_2 = self._teacher_model(x_batch_2)
 
             # compute CE loss
             loss_ce = categorical_cross_entropy_masked(
@@ -104,12 +130,14 @@ class PiModelTrainer(BaseTrainer):
 
         self._optimizer.minimize(
             total_loss,
-            self._model.trainable_variables,
+            self._student_model.trainable_variables,
             tape = tape
         )
 
-        return total_loss
+        # update teacher model weights
+        self._update_teacher_weights()
 
+        return total_loss
 
     def eval_step(self, x_batch: tf.Tensor, y_batch: tf.Tensor) -> float:
         """
@@ -127,7 +155,7 @@ class PiModelTrainer(BaseTrainer):
                     the prediction matches the true label.
         """
 
-        y_pred_batch = self._model(x_batch, training = False)
+        y_pred_batch = self._student_model(x_batch, training = False)
         loss = categorical_cross_entropy(y_pred_batch, y_batch)
 
         y_batch_label = tf.math.argmax(y_batch, axis = -1)

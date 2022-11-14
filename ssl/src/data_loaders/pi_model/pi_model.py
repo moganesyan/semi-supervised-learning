@@ -46,11 +46,11 @@ class PiModelDataLoader(BaseDataLoader):
                 This function is meant to be applied elementwise.
 
                 args:
-                    features (tf.Tensor) - Features on which to apply preprocessing steps.
-                    label (tf.Tensor) - Label(s) for the sample instance.
+                    features (tf.Tensor) - Features.
+                    label (tf.Tensor) - Label(s).
                 return:
-                    features_proc (tf.Tensor) - Features after preprocessing steps have been applied.
-                    label (tf.Tensor) - Labels(s) for the sample instance.
+                    features_proc (tf.Tensor) - Preprocessed features.
+                    label (tf.Tensor) - Labels(s).
             """
 
             features_proc = tf.cast(features, tf.float32) / 255.
@@ -62,7 +62,7 @@ class PiModelDataLoader(BaseDataLoader):
         """
             Get function that applies inference preprocessing steps.
 
-            1) Scaling features values between 0 and 1.
+            1) Scale feature values between 0 and 1.
             2) Apply one-hot encoding on labelled samples.
 
             args:
@@ -80,11 +80,11 @@ class PiModelDataLoader(BaseDataLoader):
                 This function is meant to be applied elementwise.
 
                 args:
-                    features (tf.Tensor) - Features on which to apply preprocessing steps.
-                    label (tf.Tensor) - Label(s) for the sample instance.
+                    features (tf.Tensor) - Features.
+                    label (tf.Tensor) - Label(s).
                 return:
-                    features_proc (tf.Tensor) - Features after preprocessing steps have been applied.
-                    label (tf.Tensor) - One-hot encoded labels(s) for the sample instance.
+                    features_proc (tf.Tensor) - Preprocessed features.
+                    label_onehot (tf.Tensor) - One-hot encoded labels(s).
             """
 
             features_proc = tf.cast(features, tf.float32) / 255.
@@ -111,9 +111,12 @@ class PiModelDataLoader(BaseDataLoader):
                 aug_func (Callable) - Data augmentation function.
         """
 
-        blur_chance = self._data_loader_config.blur_params['chance']
-        crop_chance = self._data_loader_config.crop_params['chance']
-        jitter_chance = self._data_loader_config.jitter_params['chance']
+        blur_chance = (self._data_loader_config.blur_params['chance']
+            if self._data_loader_config.blur_params is not None else 0.0)
+        crop_chance = (self._data_loader_config.crop_params['chance']
+            if self._data_loader_config.crop_params is not None else 0.0)
+        jitter_chance = (self._data_loader_config.jitter_params['chance']
+            if self._data_loader_config.jitter_params is not None else 0.0)
 
         def aug_func(features: tf.Tensor, label: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
             """
@@ -122,11 +125,11 @@ class PiModelDataLoader(BaseDataLoader):
                 This function is meant to be applied elementwise.
 
                 args:
-                    features (tf.Tensor) - Features on which to apply random augmentations.
+                    features (tf.Tensor) - Features.
                     label (tf.Tensor) - Label(s).
                 return:
-                    features_aug_1 (tf.Tensor) - Features after random augmentations have been applied.
-                    features_aug_2 (tf.Tensor) - Features after random augmentations have been applied.
+                    features_aug_1 (tf.Tensor) - First realisation of augmented features.
+                    features_aug_2 (tf.Tensor) - Second realisation of augmented features.
                     label (tf.Tensor) - Labels(s).
             """
 
@@ -146,48 +149,47 @@ class PiModelDataLoader(BaseDataLoader):
             # apply the first realisation of random augmentations
 
             # apply random gaussian blur
-            if roll_blur_1 <= blur_chance:
-                features_aug_1 = apply_gaussian_blur(
-                    features_aug_1,
-                    **self._data_loader_config.blur_params
-                )
+            if blur_chance != 0:
+                if roll_blur_1 <= blur_chance:
+                    features_aug_1 = apply_gaussian_blur(
+                        features_aug_1,
+                        **self._data_loader_config.blur_params
+                    )
+
+                if roll_blur_2 <= blur_chance:
+                    features_aug_2 = apply_gaussian_blur(
+                        features_aug_2,
+                        **self._data_loader_config.blur_params
+                    )
+
 
             # apply random crop and resize
-            if roll_crop_1 <= crop_chance:
-                features_aug_1 = apply_crop_and_resize(
-                    features_aug_1,
-                    **self._data_loader_config.crop_params
-                )
+            if crop_chance != 0:
+                if roll_crop_1 <= crop_chance:
+                    features_aug_1 = apply_crop_and_resize(
+                        features_aug_1,
+                        **self._data_loader_config.crop_params
+                    )
+
+                if roll_crop_2 <= crop_chance:
+                    features_aug_2 = apply_crop_and_resize(
+                        features_aug_2,
+                        **self._data_loader_config.crop_params
+                    )
 
             # apply random colour jitter / distortion
-            if roll_jitter_1 <= jitter_chance:
-                features_aug_1 = apply_colour_distortion(
-                    features_aug_1,
-                    **self._data_loader_config.jitter_params
-                )
+            if jitter_chance != 0:
+                if roll_jitter_1 <= jitter_chance:
+                    features_aug_1 = apply_colour_distortion(
+                        features_aug_1,
+                        **self._data_loader_config.jitter_params
+                    )
 
-            # apply the second realisation of random augmentations
-
-            # apply random gaussian blur
-            if roll_blur_2 <= blur_chance:
-                features_aug_2 = apply_gaussian_blur(
-                    features_aug_2,
-                    **self._data_loader_config.blur_params
-                )
-
-            # apply random crop and resize
-            if roll_crop_2 <= crop_chance:
-                features_aug_2 = apply_crop_and_resize(
-                    features_aug_2,
-                    **self._data_loader_config.crop_params
-                )
-
-            # apply random colour jitter / distortion
-            if roll_jitter_2 <= jitter_chance:
-                features_aug_2 = apply_colour_distortion(
-                    features_aug_2,
-                    **self._data_loader_config.jitter_params
-                )
+                if roll_jitter_2 <= jitter_chance:
+                    features_aug_2 = apply_colour_distortion(
+                        features_aug_2,
+                        **self._data_loader_config.jitter_params
+                    )
 
             return tf.squeeze(features_aug_1), tf.squeeze(features_aug_2), label
 
@@ -197,7 +199,7 @@ class PiModelDataLoader(BaseDataLoader):
         """
             Get custom batching function.
 
-            1) Split batch into labelled and unlabelled samples.
+            1) Mask unlabelled samples.
             2) Apply one-hot encoding on labelled samples.
 
             args:
@@ -219,39 +221,27 @@ class PiModelDataLoader(BaseDataLoader):
 
                 This function is meant to be applied batchwise.
 
-                1) Labelled batch is constructed only from two realisations of 
-                    augmented features.
-                2) Unlabelled batch is constructed from two realisation of
-                    augmented features.
-
                 args:
                     features_batch_1 (tf.Tensor) - First realisation batch of augmented features.
                     features_batch_2 (tf.Tensor) - Second realisation batch of augmented features.
                     labels_batch (tf.Tensor) - Batch of labels.
                 return:
-                    features_batch_labelled_1 (tf.Tensor) - First batch of augmented features with labels.
-                    features_batch_labelled_2 (tf.Tensor) - Second batch of augmented features with labels.
-                    features_batch_unlabelled_1 (tf.Tensor) - First batch of augmented features without labels.
-                    features_batch_unlabelled_2 (tf.Tensor) - Second batch of augmented features without labels.
+                    features_batch_1 (tf.Tensor) - First batch of augmented features.
+                    features_batch_2 (tf.Tensor) - Second batch of augmented features.
                     label_batch_onehot (tf.Tensor) - Batch of one-hot encoded class labels.
+                    mask_batch (tf.Tensor) - Batch of flags indicating labelled samples.
             """
 
-            # idx for unlabelled data
-            idx_labelled = tf.where(tf.not_equal(labels_batch, -1))[:,0]
-            idx_unlabelled = tf.where(tf.equal(labels_batch, -1))[:,0]
+            # get mask batch
+            mask_batch = tf.not_equal(labels_batch, -1)
 
-            # split batch
-            features_batch_labelled_1 = tf.gather(features_batch_1, indices = idx_labelled, axis = 0)
-            features_batch_labelled_2 = tf.gather(features_batch_2, indices = idx_labelled, axis = 0)
-            labels_batch_labelled = tf.gather(labels_batch, indices = idx_labelled, axis = 0)
-
-            features_batch_unlabelled_1 = tf.gather(features_batch_1, indices = idx_unlabelled, axis = 0)
-            features_batch_unlabelled_2 = tf.gather(features_batch_2, indices = idx_unlabelled, axis = 0)
+            # change the placeholder -1 labels to 0 (a valid class label)
+            labels_batch = labels_batch * tf.cast(mask_batch, tf.int64)
 
             # encode labels
-            label_batch_onehot = tf.squeeze(tf.one_hot(labels_batch_labelled, num_classes))
+            label_batch_onehot = tf.squeeze(tf.one_hot(labels_batch, num_classes))
 
-            return features_batch_labelled_1, features_batch_labelled_2, features_batch_unlabelled_1, features_batch_unlabelled_2, label_batch_onehot
+            return features_batch_1, features_batch_2, label_batch_onehot, mask_batch
 
         return batch_func
 

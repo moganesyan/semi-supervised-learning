@@ -50,7 +50,7 @@ def apply_gaussian_blur(x_in: tf.Tensor,
     blur_strength = tf.random.uniform(
         (), blur_strength_min, blur_strength_max)
     kernel_size = tf.cast(x_in.shape[1], tf.float32) * tf.constant(kernel_ratio)
-    kernel_size = tf.cast(kernel_size, tf.int32)
+    kernel_size = tf.cast(kernel_size, tf.int64)
 
     kernel = get_gaussian_kernel(kernel_size, blur_strength)
     kernel = kernel[..., tf.newaxis]
