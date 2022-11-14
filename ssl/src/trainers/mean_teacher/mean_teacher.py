@@ -102,7 +102,7 @@ class MeanTeacherTrainer(BaseTrainer):
             y_pred_batch_1 = self._student_model(x_batch_1)
 
             with tape.stop_recording():
-                y_pred_batch_2 = self._teacher_model(x_batch_2)
+                y_pred_batch_2 = self._teacher_model(x_batch_2, training = False)
 
             # compute CE loss
             loss_ce = categorical_cross_entropy_masked(
