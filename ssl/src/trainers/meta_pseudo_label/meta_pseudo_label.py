@@ -94,10 +94,10 @@ class MetaPseudoLabelTrainer(BaseTrainer):
             Apply a single training step on the input batch.
 
         1) Inferece pass on unlabelled data using the teacher model
-            to get (hard) pseudo labels. (unwatched)
-        2) Compute the student model's CE loss on unsupervised
+            to get hard pseudo labels. (unwatched)
+        2) Compute the student model's CE loss on unlabelled
             samples against pseudo labels.
-        3) Update student model's weights using SGD.
+        3) Update the student model's weights.
         4) Compute teacher model's feedback coefficient using updated student model's
             CE loss on labelled data and old student model's CE loss on unlabelled data
             against pseudo labels (reused from step 3).
@@ -105,7 +105,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
             step 4 and teacher model's CE loss on unlabelled data using its own hard pseudo labels.
         6) Compute the teacher model's supervised gradient by using the CE loss on labelled samples.
         6a) TODO: Compute the teacher model's unsupervised UDA gradient.
-        7) Update teacher model's weights using the gradients calculated in steps 5 and 6 using SGD.
+        7) Update teacher model's weights using the gradients calculated in steps 5 and 6.
 
             args:
                 x_batch (tf.Tensor) - Batch of input feature tensors containing labelled and
@@ -124,7 +124,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
         y_batch_pseudo_soft = self._teacher_model(x_batch, training = False)
         y_batch_pseudo = tf.argmax(y_batch_pseudo_soft, axis = 1)
         y_batch_pseudo = tf.one_hot(y_batch_pseudo, num_classes)
-        
+
         # Compute student model's loss on unlaballed data.
         with tf.GradientTape() as tape_student_old:
             # Student model forward pass
@@ -143,10 +143,12 @@ class MetaPseudoLabelTrainer(BaseTrainer):
             self._student_model.trainable_variables
         )
         self._student_optimizer.apply_gradients(
-            zip(student_grads_old,
-            self._student_model.trainable_variables)
+            zip(
+                student_grads_old,
+                self._student_model.trainable_variables
+            )
         )
-        
+
         # Compute updated student model's loss on labelled data.
         with tf.GradientTape() as tape_student_new:
             y_batch_student_pred_new = self._student_model(x_batch)
@@ -155,7 +157,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
                 y_batch,
                 mask_batch
             )
-        
+
         # Compute the teacher model's feedback coefficient
         student_grads_new = tape_student_new.gradient(
             loss_student_sup,
@@ -168,7 +170,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
             )
         )
         h = self._student_optimizer.learning_rate * dot_product_temp
-        
+
         # Compute losses for the teacher model
         with tf.GradientTape(persistent = True) as tape_teacher:
             # Forward call using the teacher model
@@ -180,34 +182,36 @@ class MetaPseudoLabelTrainer(BaseTrainer):
                 y_batch_pseudo,
                 tf.logical_not(mask_batch)
             )
-            
+
             # Get teacher model's supervised loss
             loss_teacher_sup = categorical_cross_entropy_masked(
                 y_batch_teacher_pred,
                 y_batch,
                 mask_batch
             )
-        
+
         # Compute gradients for the teacher model
         teacher_grads_unsup = h * tape_teacher.gradient(
             loss_teacher_unsup,
             self._teacher_model.trainable_variables
         )
-        
+
         teacher_grads_sup = tape_teacher.gradient(
             loss_teacher_sup,
             self._teacher_model.trainable_variables
         )
-        
+
         # TODO: Unsupervised UDA loss for teacher
-        
+
         # Compute total gradient for the teacher model
-        teacher_grads_total = [x + y for (x,y) in zip(teacher_grads_unsup, teacher_grads_sup)]
-        
+        teacher_grads_total = [x + y for (x, y) in zip(teacher_grads_unsup, teacher_grads_sup)]
+
         # Update teacher model's weights
         self._teacher_optimizer.apply_gradients(
-            zip(teacher_grads_total,
-            self._teacher_model.trainable_variables)
+            zip(
+                teacher_grads_total,
+                self._teacher_model.trainable_variables
+            )
         )
 
         return loss_student_unsup, loss_student_sup, loss_teacher_unsup, loss_teacher_sup
