@@ -140,12 +140,12 @@ class MetaPseudoLabelTrainer(BaseTrainer):
         # Update student model's weights
         student_grads_old = tape_student_old.gradient(
             loss_student_unsup,
-            self._student_model.trainable_variables
+            self._student_model.trainable_weights
         )
         self._student_optimizer.apply_gradients(
             zip(
                 student_grads_old,
-                self._student_model.trainable_variables
+                self._student_model.trainable_weights
             )
         )
 
@@ -161,7 +161,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
         # Compute the teacher model's feedback coefficient
         student_grads_new = tape_student_new.gradient(
             loss_student_sup,
-            self._student_model.trainable_variables
+            self._student_model.trainable_weights
         )
         dot_product_temp = tf.reduce_sum(
             tf.multiply(
@@ -191,14 +191,15 @@ class MetaPseudoLabelTrainer(BaseTrainer):
             )
 
         # Compute gradients for the teacher model
-        teacher_grads_unsup = h * tape_teacher.gradient(
+        teacher_grads_unsup = tape_teacher.gradient(
             loss_teacher_unsup,
-            self._teacher_model.trainable_variables
+            self._teacher_model.trainable_weights
         )
+        teacher_grads_unsup = map(lambda x: x * h, teacher_grads_unsup)
 
         teacher_grads_sup = tape_teacher.gradient(
             loss_teacher_sup,
-            self._teacher_model.trainable_variables
+            self._teacher_model.trainable_weights
         )
 
         # TODO: Unsupervised UDA loss for teacher
@@ -210,7 +211,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
         self._teacher_optimizer.apply_gradients(
             zip(
                 teacher_grads_total,
-                self._teacher_model.trainable_variables
+                self._teacher_model.trainable_weights
             )
         )
 
