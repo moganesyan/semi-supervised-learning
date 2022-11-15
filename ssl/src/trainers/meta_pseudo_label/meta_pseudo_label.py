@@ -283,6 +283,9 @@ class MetaPseudoLabelTrainer(BaseTrainer):
             lttu /=  train_step_idx
             ltts /=  train_step_idx
 
+            # get training log string with all the losses
+            train_log_str = f"Training loss at epoch {epoch} is : ltsu {ltsu:.2f}, ltss {ltss:.2f}, lttu {lttu:.2f}, ltts {ltts:.2f}."
+
             if self._val_dataset is not None:
 
                 matches_val = []
@@ -298,8 +301,8 @@ class MetaPseudoLabelTrainer(BaseTrainer):
                 val_acc = 100 * (np.sum(matches_val) / len(matches_val))
                 
                 tf.print(
-                    "Training loss at epoch {epoch} is : ltsu {ltsu:.2f}, ltss {ltss:.2f}, lttu {lttu:.2f}, ltts {ltts:.2f}. Validation loss is : {val_loss:.2f}. Validation acc. is : {val_acc:.2f}."
+                    train_log_str + f" Validation loss is : {val_loss:.2f}. Validation acc. is : {val_acc:.2f}."
                 )
 
             else:
-                tf.print(f"Training loss at epoch {epoch} is : ltsu {ltsu:.2f}, ltss {ltss:.2f}, lttu {lttu:.2f}, ltts {ltts:.2f}.")
+                tf.print(train_log_str)
