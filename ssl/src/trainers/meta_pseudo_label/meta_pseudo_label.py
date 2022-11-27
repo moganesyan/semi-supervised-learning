@@ -12,6 +12,7 @@ from ...models.base_model.base_model import BaseModel
 
 from ...losses.classification import categorical_cross_entropy_masked
 from ...losses.classification import categorical_cross_entropy
+from ...losses.consistency import masked_consistency
 
 # set up logger
 logger = logging.getLogger(__name__)
@@ -88,8 +89,9 @@ class MetaPseudoLabelTrainer(BaseTrainer):
 
     def train_step(self,
                    x_batch: tf.Tensor,
+                   x_batch_aug: tf.Tensor,
                    y_batch: tf.Tensor,
-                   mask_batch: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+                   mask_batch: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
         """
             Apply a single training step on the input batch.
 
@@ -104,11 +106,13 @@ class MetaPseudoLabelTrainer(BaseTrainer):
         5) Compute teacher model's feedback gradient using the feedback coefficient from
             step 4 and teacher model's CE loss on unlabelled data using its own hard pseudo labels.
         6) Compute the teacher model's supervised gradient by using the CE loss on labelled samples.
-        6a) TODO: Compute the teacher model's unsupervised UDA gradient.
-        7) Update teacher model's weights using the gradients calculated in steps 5 and 6.
+        7) Compute the teacher model's UDA loss on unlabelled data.
+        8) Update teacher model's weights using the gradients calculated in steps 5 and 6.
 
             args:
                 x_batch (tf.Tensor) - Batch of input feature tensors containing labelled and
+                    and unlabelled samples.
+                x_batch_aug (tf.Tensor) - Batch of augmented input feature tensors containing labelled and
                     and unlabelled samples.
                 y_batch (tf.Tensor) - Batch of input label tensors.
                 mask_batch (tf.Tensor) - Batch of flags indicating the labelled status of each sample.
@@ -117,6 +121,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
                 loss_student_sup (tf.Tensor) - Supervised loss for the student model against real labels.
                 loss_teacher_unsup (tf.Tensor) - Unsupervised loss for the teacher model against pseudo labels.
                 loss_teacher_sup (tf.Tensor) - Supervised loss for the teacher model against real labels.
+                loss_teacher_uda (tf.Tensor) - Unsupervised UDA loss for the teacher model.
         """
 
         # Inference on unlabelled data using the teacher model to get pseudo labels.
@@ -128,7 +133,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
         # Compute student model's loss on unlaballed data.
         with tf.GradientTape() as tape_student_old:
             # Student model forward pass
-            y_batch_student_pred = self._student_model(x_batch)
+            y_batch_student_pred = self._student_model(x_batch_aug)
             
             # Unsupervised student loss
             loss_student_unsup = categorical_cross_entropy_masked(
@@ -151,7 +156,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
 
         # Compute updated student model's loss on labelled data.
         with tf.GradientTape() as tape_student_new:
-            y_batch_student_pred_new = self._student_model(x_batch)
+            y_batch_student_pred_new = self._student_model(x_batch_aug)
             loss_student_sup = categorical_cross_entropy_masked(
                 y_batch_student_pred_new,
                 y_batch,
@@ -163,18 +168,24 @@ class MetaPseudoLabelTrainer(BaseTrainer):
             loss_student_sup,
             self._student_model.trainable_weights
         )
-        dot_product_temp = tf.reduce_sum(
+
+        student_grads_new_flat = tf.concat([tf.reshape(g, (-1,1)) for g in student_grads_new], 0)
+        student_grads_old_flat = tf.concat([tf.reshape(g, (-1,1)) for g in student_grads_old], 0)
+
+        dot_product_grads = tf.reduce_sum(
             tf.multiply(
-                tf.concat([tf.reshape(g, (-1,1)) for g in student_grads_new], 0),
-                tf.concat([tf.reshape(g, (-1,1)) for g in student_grads_old], 0)
+                student_grads_new_flat,
+                student_grads_old_flat
             )
         )
-        h = self._student_optimizer.learning_rate * dot_product_temp
+        cosine_dist_grads = dot_product_grads / (tf.constant(1e-16, tf.float32) + (tf.norm(student_grads_new_flat) * tf.norm(student_grads_old_flat)))
+
+        h = cosine_dist_grads
 
         # Compute losses for the teacher model
         with tf.GradientTape(persistent = True) as tape_teacher:
             # Forward call using the teacher model
-            y_batch_teacher_pred = self._teacher_model(x_batch)
+            y_batch_teacher_pred = self._teacher_model(x_batch_aug)
             
             # Get teacher model's unsupervised loss (against its own hard pseudo labels)
             loss_teacher_unsup = categorical_cross_entropy_masked(
@@ -190,22 +201,25 @@ class MetaPseudoLabelTrainer(BaseTrainer):
                 mask_batch
             )
 
+            # get teacher's UDA loss
+            loss_teacher_uda = masked_consistency(
+                y_batch_teacher_pred,
+                y_batch_pseudo_soft,
+                tf.logical_not(mask_batch)
+            )
+
+            # apply loss weight coefficients
+            loss_teacher_unsup = h * loss_teacher_unsup
+            loss_teacher_uda = self._training_config.uda_loss_weight * loss_teacher_uda
+
+            # compute total loss for the teacher model
+            loss_teacher_total = loss_student_unsup + loss_teacher_sup + loss_teacher_uda
+
         # Compute gradients for the teacher model
-        teacher_grads_unsup = tape_teacher.gradient(
-            loss_teacher_unsup,
+        teacher_grads_total = tape_teacher.gradient(
+            loss_teacher_total,
             self._teacher_model.trainable_weights
         )
-        teacher_grads_unsup = map(lambda x: x * h, teacher_grads_unsup)
-
-        teacher_grads_sup = tape_teacher.gradient(
-            loss_teacher_sup,
-            self._teacher_model.trainable_weights
-        )
-
-        # TODO: Unsupervised UDA loss for teacher
-
-        # Compute total gradient for the teacher model
-        teacher_grads_total = [x + y for (x, y) in zip(teacher_grads_unsup, teacher_grads_sup)]
 
         # Update teacher model's weights
         self._teacher_optimizer.apply_gradients(
@@ -215,7 +229,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
             )
         )
 
-        return loss_student_unsup, loss_student_sup, loss_teacher_unsup, loss_teacher_sup
+        return loss_student_unsup, loss_student_sup, loss_teacher_unsup, loss_teacher_sup, loss_teacher_uda
 
     def eval_step(self, x_batch: tf.Tensor, y_batch: tf.Tensor) -> float:
         """
@@ -266,10 +280,12 @@ class MetaPseudoLabelTrainer(BaseTrainer):
             ltss = tf.constant(0, tf.float32)
             lttu = tf.constant(0, tf.float32)
             ltts = tf.constant(0, tf.float32)
+            lttuda = tf.constant(0, tf.float32)
 
-            for train_step_idx, (x_batch_train, y_batch_train, mask_batch_train) in enumerate(self._train_dataset):
-                _ltsu, _ltss, _lttu, _ltts  = self.train_step(
+            for train_step_idx, (x_batch_train, x_batch_aug_train, y_batch_train, mask_batch_train) in enumerate(self._train_dataset):
+                _ltsu, _ltss, _lttu, _ltts, _lttuda  = self.train_step(
                     x_batch_train,
+                    x_batch_aug_train,
                     y_batch_train,
                     mask_batch_train,
                 )
@@ -278,14 +294,16 @@ class MetaPseudoLabelTrainer(BaseTrainer):
                 ltss += _ltss
                 lttu += _lttu
                 ltts += _ltts
+                lttuda += _lttuda
             
             ltsu /=  train_step_idx
             ltss /=  train_step_idx
             lttu /=  train_step_idx
             ltts /=  train_step_idx
+            lttuda /= train_step_idx
 
             # get training log string with all the losses
-            train_log_str = f"Training loss at epoch {epoch} is : ltsu {ltsu:.2f}, ltss {ltss:.2f}, lttu {lttu:.2f}, ltts {ltts:.2f}."
+            train_log_str = f"Training loss at epoch {epoch} is : ltsu {ltsu:.2f}, ltss {ltss:.2f}, lttu {lttu:.2f}, ltts {ltts:.2f}, lttuda {lttuda:.2f}."
 
             if self._val_dataset is not None:
 

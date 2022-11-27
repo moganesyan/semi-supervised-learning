@@ -118,9 +118,9 @@ class MetaPseudoLabelDataLoader(BaseDataLoader):
         jitter_chance = (self._data_loader_config.jitter_params['chance']
             if self._data_loader_config.jitter_params is not None else 0.0)
 
-        def aug_func(features: tf.Tensor, label: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
+        def aug_func(features: tf.Tensor, label: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
             """
-                Apply two realisations of random data augmentations.
+                Apply random data augmentations.
 
                 This function is meant to be applied elementwise.
 
@@ -128,6 +128,7 @@ class MetaPseudoLabelDataLoader(BaseDataLoader):
                     features (tf.Tensor) - Features.
                     label (tf.Tensor) - Label(s).
                 return:
+                    features (tf.Tensor) - Unaugmented features.
                     features_aug (tf.Tensor) - Augmented features.
                     label (tf.Tensor) - Labels(s).
             """
@@ -165,7 +166,7 @@ class MetaPseudoLabelDataLoader(BaseDataLoader):
                         **self._data_loader_config.jitter_params
                     )
 
-            return tf.squeeze(features_aug), label
+            return features, tf.squeeze(features_aug), label
 
         return aug_func
 
@@ -185,7 +186,8 @@ class MetaPseudoLabelDataLoader(BaseDataLoader):
         num_classes = self._data_loader_config.num_classes
 
         def batch_func(features_batch: tf.Tensor,
-                       labels_batch: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+                       features_batch_aug: tf.Tensor,
+                       labels_batch: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
             """
                 Apply custom batching logic.
 
@@ -195,10 +197,12 @@ class MetaPseudoLabelDataLoader(BaseDataLoader):
                 This function is meant to be applied batchwise.
 
                 args:
-                    features_batch (tf.Tensor) - Batch of augmented features.
+                    features_batch (tf.Tensor) - Batch of features.
+                    features_batch_aug (tf.Tensor) - Batch of augmented features.
                     labels_batch (tf.Tensor) - Batch of labels.
                 return:
-                    features_batch (tf.Tensor) - Batch of augmented features.
+                    features_batch (tf.Tensor) - Batch of features.
+                    features_batch_aug (tf.Tensor) - Batch of augmented features.
                     label_batch_onehot (tf.Tensor) - Batch of one-hot encoded class labels.
                     mask_batch (tf.Tensor) - Batch of flags indicating labelled samples.
             """
@@ -212,7 +216,7 @@ class MetaPseudoLabelDataLoader(BaseDataLoader):
             # encode labels
             label_batch_onehot = tf.squeeze(tf.one_hot(labels_batch, num_classes))
 
-            return features_batch, label_batch_onehot, mask_batch
+            return features_batch, features_batch_aug, label_batch_onehot, mask_batch
 
         return batch_func
 
