@@ -16,8 +16,11 @@ class MetaPseudoLabelTrainerConfig(BaseTrainerConfig):
             lr_schedule (Optional[Dict]): Configuration for the learning rate schedule.
             optimizer (Dict): Configuration for the optimizer.
             uda_loss_weight (float): Weight factor for the UDA loss component.
+            num_epochs_finetune (int): Number of epochs to finetune the model.
             seed (int): Random seed.
     """
 
     num_epochs: int = 100
     uda_loss_weight: float = 1.0
+
+    num_epochs_finetune: int = 50

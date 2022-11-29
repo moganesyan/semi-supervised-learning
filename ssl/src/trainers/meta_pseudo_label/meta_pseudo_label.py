@@ -33,6 +33,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
         teacher_model: BaseModel,
         train_dataset: tf.data.Dataset,
         training_config: MetaPseudoLabelTrainerConfig,
+        finetune_dataset: tf.data.Dataset,
         val_dataset: Optional[tf.data.Dataset] = None) -> None:
 
         super().__init__(
@@ -40,10 +41,14 @@ class MetaPseudoLabelTrainer(BaseTrainer):
             training_config,
             val_dataset
         )
+
+        self._finetune_dataset = finetune_dataset
+
         self._student_model = student_model
         self._teacher_model = teacher_model
 
         self._student_optimizer, self._teacher_optimizer = self._get_twin_optimizers()
+        self._finetune_optimizer = self._get_optimizer()
 
     def _get_twin_optimizers(self) -> Tuple[tf.keras.optimizers.Optimizer, tf.keras.optimizers.Optimizer]:
         """
@@ -231,6 +236,30 @@ class MetaPseudoLabelTrainer(BaseTrainer):
 
         return loss_student_unsup, loss_student_sup, loss_teacher_unsup, loss_teacher_sup, loss_teacher_uda
 
+    def train_step_finetune(self,
+                            x_batch: tf.Tensor,
+                            y_batch: tf.Tensor) -> tf.Tensor:
+        """
+            Apply a single training step on the input batch.
+
+            1) Forward pass.
+            2) Calculate CCE loss.
+            3) Apply optimizer on the model parameters (eg: weight update).
+
+            args:
+                x_batch (tf.Tensor) - Batch of input feature tensors.
+                y_batch (tf.Tensor) - Batch of input label tensors.
+            returns:
+                loss (tf.Tensor) - Loss for the batch.
+        """
+
+        with tf.GradientTape() as tape:
+            y_pred_batch = self._student_model(x_batch)
+            loss = categorical_cross_entropy(y_pred_batch, y_batch)
+        self._finetune_optimizer.minimize(loss, self._student_model.trainable_variables, tape = tape)
+
+        return loss
+
     def eval_step(self, x_batch: tf.Tensor, y_batch: tf.Tensor) -> float:
         """
             Apply a single evaluation step on the input batch.
@@ -266,6 +295,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
             3) For each epoch, loop through the validation dataset (if available) batchwise.
                 For each batch, apply the evaluation step.
             4) Print training and evaluation metrics.
+            5) Once main training loop is done, finetune the student model.
 
             args:
                 None
@@ -325,3 +355,39 @@ class MetaPseudoLabelTrainer(BaseTrainer):
 
             else:
                 tf.print(train_log_str)
+
+        # model finetuning
+        tf.print("**** SSL training done. Beginning finetuning of the student model. ****")
+
+        for epoch in tf.range(self._training_config.num_epochs_finetune):
+
+            # instantiate training loss
+            train_loss = tf.constant(0, dtype = tf.float32)
+
+            for train_step_idx, (x_batch_train, y_batch_train) in enumerate(self._finetune_dataset):
+
+                loss_train = self.train_step_finetune(x_batch_train, y_batch_train)
+                train_loss += loss_train
+            
+            train_loss /=  train_step_idx
+
+            if self._val_dataset is not None:
+
+                matches_val = []
+                val_loss = tf.constant(0, dtype = tf.float32)
+                for val_step_idx, (x_batch_val, y_batch_val) in enumerate(self._val_dataset):
+                    loss_val, match_val = self.eval_step(x_batch_val, y_batch_val)
+
+                    matches_val.append(match_val.numpy())
+                    val_loss += loss_val
+                
+                val_loss /= val_step_idx
+                matches_val = np.concatenate(matches_val)
+                val_acc = 100 * (np.sum(matches_val) / len(matches_val))
+
+                tf.print(
+                    f"Training loss at epoch {epoch} is : {train_loss:.2f}. Validation loss is : {val_loss:.2f}. Validation acc. is : {val_acc:.2f}."
+                )
+
+            else:
+                tf.print(f"Training loss at epoch {epoch} is : {train_loss:.2f}.")
