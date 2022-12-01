@@ -228,7 +228,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
                 )
 
             # get teacher's UDA loss
-            loss_teacher_uda = categorical_cross_entropy_masked(
+            loss_teacher_uda = masked_consistency(
                 y_batch_teacher_pred,
                 y_batch_pseudo_soft,
                 mask_uda_final
