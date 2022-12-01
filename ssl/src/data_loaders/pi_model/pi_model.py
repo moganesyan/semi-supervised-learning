@@ -212,7 +212,7 @@ class PiModelDataLoader(BaseDataLoader):
 
         def batch_func(features_batch_1: tf.Tensor,
                        features_batch_2: tf.Tensor,
-                       labels_batch: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+                       labels_batch: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
             """
                 Apply custom batching logic.
 

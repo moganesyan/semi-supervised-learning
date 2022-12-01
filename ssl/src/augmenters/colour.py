@@ -18,7 +18,7 @@ def colour_jitter(x_in: tf.Tensor, strength: float) -> tf.Tensor:
             x_out (tf.Tensor): Augmented image tensor.
     """
 
-    x = tf.image.random_brightness(x_in, max_delta = strength)
+    x = tf.image.random_brightness(x_in, max_delta = 0.33 * strength)
     x = tf.image.random_contrast(
         x,
         lower = 1 - strength,

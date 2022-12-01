@@ -33,6 +33,9 @@ class BaseTrainer(ABC):
         training_config: BaseTrainerConfig,
         val_dataset: Optional[tf.data.Dataset] = None) -> None:
 
+        # set training random seed
+        set_seed(training_config.seed)
+
         self._train_dataset = train_dataset
         self._training_config = training_config
         self._val_dataset = val_dataset
@@ -40,9 +43,6 @@ class BaseTrainer(ABC):
         self._lr_schedule = self._get_lr_schedule()
         self._optimizer = self._get_optimizer()
         self._callbacks = self._get_callbacks()
-
-        # set training random seed
-        set_seed(training_config.seed)
 
     def _get_lr_schedule(self) -> Optional[tf.keras.optimizers.schedules.LearningRateSchedule]:
         """
