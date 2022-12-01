@@ -84,7 +84,9 @@ class PiModel(BaseModel):
         
         # get output layer
         x_out = layers.Dense(self._output_shape, name = 'output')(x)
-        x_out = self._output_activation()(x_out)
+
+        if self._output_activation is not None:
+            x_out = self._output_activation()(x_out)
 
         # get keras model callable
         model = models.Model(inputs = x_in, outputs = x_out)

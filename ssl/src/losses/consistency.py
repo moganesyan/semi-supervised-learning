@@ -45,8 +45,7 @@ def masked_consistency(y_pred_1: tf.Tensor,
             loss (tf.Tensor): Scaled SE loss.
     """
 
-    mask_num = tf.cast(mask, tf.float32)
-    _epsilon = tf.constant(1e-16)
+    mask_num = tf.stop_gradient(tf.cast(mask, tf.float32))
 
     mse = tf.reduce_sum(
         tf.math.pow(y_pred_1 - y_pred_2, 2),
@@ -55,6 +54,8 @@ def masked_consistency(y_pred_1: tf.Tensor,
     mse_masked = mse[..., tf.newaxis] * mask_num
 
     # calculate modified batchwise mean
-    minibatch_size = tf.reduce_sum(mask_num)
+    minibatch_size = tf.stop_gradient(
+        tf.clip_by_value(tf.reduce_sum(mask_num), 1e-16, 1e16)
+    )
 
-    return tf.reduce_sum(mse_masked) / (minibatch_size + _epsilon)
+    return tf.reduce_sum(mse_masked) / minibatch_size

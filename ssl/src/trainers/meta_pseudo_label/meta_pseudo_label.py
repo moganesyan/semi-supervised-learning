@@ -131,14 +131,17 @@ class MetaPseudoLabelTrainer(BaseTrainer):
 
         # Inference on unlabelled data using the teacher model to get pseudo labels.
         num_classes = tf.shape(y_batch)[1]
-        y_batch_pseudo_soft = self._teacher_model(x_batch, training = False)
+        y_batch_pseudo_logits = self._teacher_model(x_batch, training = False)
+        y_batch_pseudo_soft = tf.nn.softmax(
+            y_batch_pseudo_logits / self._training_config.uda_softmax_temp
+        )
         y_batch_pseudo = tf.argmax(y_batch_pseudo_soft, axis = 1)
         y_batch_pseudo = tf.one_hot(y_batch_pseudo, num_classes)
 
         # Compute student model's loss on unlaballed data.
         with tf.GradientTape() as tape_student_old:
             # Student model forward pass
-            y_batch_student_pred = self._student_model(x_batch_aug)
+            y_batch_student_pred = tf.nn.softmax(self._student_model(x_batch_aug))
             
             # Unsupervised student loss
             loss_student_unsup = categorical_cross_entropy_masked(
@@ -161,7 +164,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
 
         # Compute updated student model's loss on labelled data.
         with tf.GradientTape() as tape_student_new:
-            y_batch_student_pred_new = self._student_model(x_batch_aug)
+            y_batch_student_pred_new = tf.nn.softmax(self._student_model(x_batch_aug))
             loss_student_sup = categorical_cross_entropy_masked(
                 y_batch_student_pred_new,
                 y_batch,
@@ -183,14 +186,18 @@ class MetaPseudoLabelTrainer(BaseTrainer):
                 student_grads_old_flat
             )
         )
-        cosine_dist_grads = dot_product_grads / (tf.constant(1e-16, tf.float32) + (tf.norm(student_grads_new_flat) * tf.norm(student_grads_old_flat)))
+        norm_product = tf.clip_by_value(
+            tf.norm(student_grads_new_flat) * tf.norm(student_grads_old_flat),
+            1e-16,
+            1e16
+        )
 
-        h = cosine_dist_grads
+        h = dot_product_grads / norm_product
 
         # Compute losses for the teacher model
         with tf.GradientTape(persistent = True) as tape_teacher:
             # Forward call using the teacher model
-            y_batch_teacher_pred = self._teacher_model(x_batch_aug)
+            y_batch_teacher_pred = tf.nn.softmax(self._teacher_model(x_batch_aug))
             
             # Get teacher model's unsupervised loss (against its own hard pseudo labels)
             loss_teacher_unsup = categorical_cross_entropy_masked(
@@ -206,11 +213,25 @@ class MetaPseudoLabelTrainer(BaseTrainer):
                 mask_batch
             )
 
+            with tape_teacher.stop_recording():
+                mask_uda = tf.reduce_max(
+                    y_batch_pseudo_soft,
+                    axis = -1
+                )
+                mask_uda = tf.greater_equal(
+                    mask_uda,
+                    self._training_config.uda_conf_thresh
+                )
+                mask_uda_final = tf.logical_and(
+                    tf.logical_not(mask_batch),
+                    mask_uda
+                )
+
             # get teacher's UDA loss
-            loss_teacher_uda = masked_consistency(
+            loss_teacher_uda = categorical_cross_entropy_masked(
                 y_batch_teacher_pred,
                 y_batch_pseudo_soft,
-                tf.logical_not(mask_batch)
+                mask_uda_final
             )
 
             # apply loss weight coefficients
@@ -254,7 +275,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
         """
 
         with tf.GradientTape() as tape:
-            y_pred_batch = self._student_model(x_batch)
+            y_pred_batch = tf.nn.softmax(self._student_model(x_batch))
             loss = categorical_cross_entropy(y_pred_batch, y_batch)
         self._finetune_optimizer.minimize(loss, self._student_model.trainable_variables, tape = tape)
 
@@ -276,7 +297,7 @@ class MetaPseudoLabelTrainer(BaseTrainer):
                     the prediction matches the true label.
         """
 
-        y_pred_batch = self._student_model(x_batch, training = False)
+        y_pred_batch = tf.nn.softmax(self._student_model(x_batch, training = False))
         loss = categorical_cross_entropy(y_pred_batch, y_batch)
 
         y_batch_label = tf.math.argmax(y_batch, axis = -1)
